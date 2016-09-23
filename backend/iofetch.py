@@ -29,8 +29,6 @@ from os import listdir
 from os import system
 from os import path
 
-hostaddr = [192,168,1,None]
-
 IPSCAN_FILEPATH =r'/tmp/ipscan'
 NO_HOST_MSG = 'No host reachable on'
 HOST_MSG = '-**- IP available -**-\n'
@@ -51,10 +49,11 @@ TYPE_OUT = 'output'
 
 total_ip = []
 
+
 part_a = []
 part_b = []
 current_part = part_a
-
+hostaddr = [192,168,1,None]
 for item in hostaddr:
     if item or item == 0:
         current_part.append(item)
@@ -83,7 +82,6 @@ def find_audio():
     system(cmd)
     audio_dev = parse_pactl_list(AUDIO_DEV_LIST_PATH, audio_dev)
 
-##    print ('--**-- AUDIO DEVICES --**--\n', audio_dev)
     return audio_dev
 
 def parse_pactl_list(filepath, output_dict,):
@@ -150,10 +148,8 @@ def find_usbcam():
     dev_infopath = [VIDEO_DEVICE_PATH + dev for dev in listdir(VIDEO_DEVICE_PATH)]
     for dev in dev_infopath:
         dev_namepath = path.realpath(dev) + r'/name'
-##        print('dev_namepath =', dev_namepath)
         with open(dev_namepath, 'r') as f:
             dev_name = f.readline().rstrip()
-##            print('dev_name =', dev_name)
         for i in dev_list:
             splitted = i.split('/')
             if splitted[-1] in dev:
@@ -162,7 +158,6 @@ def find_usbcam():
                                        COMM : COMM_USB,
                                        TYPE: TYPE_IN,
                                        GSTELEM : GSTINIT,}})
-##    print ('--**-- USB VIDEO DEVICES --**--\n', video_dev)
     return video_dev  
     
     
@@ -193,14 +188,7 @@ def scan_subnet(partial_IP):
     cmd_last = '/' + str(netmask) + '> ' + IPSCAN_FILEPATH + ' 2>&1'
     
     if length == 1:
-
-        pass
-
-##        full_cmd = cmd_first + cmd_mid + cmd_last
-##        print (subnet_str)
-##        print (full_cmd)
-##        print('Scanning network...')
-##        system(full_cmd)
+        print('[ERROR] A-type network scanning not allowed :: too broad')
     elif length == 2:
         print('Scanning network...')
         for i in range(255):
@@ -212,7 +200,7 @@ def scan_subnet(partial_IP):
                                          NO_HOST_MSG,
                                          HOST_MSG,
                                          cmd_mid,)
-            yield
+            yield avail_ip
     elif length == 3:
         cmd_mid = subnet_str + '0'
         full_cmd = cmd_first + cmd_mid + cmd_last
@@ -253,14 +241,9 @@ def update_deviceinfo(device_dict, field, *pargs, update_msg=None, **kargs):
         print('[INFO] Updating dict failed - \'field\' is empty or have length > 1')
 
     
-##find_audio()
-##find_usbcam()
-##exit() # -->[DEBUG]<--
-
 # Use iterator manually via CDL
 # -----------------------------
 user_scan = input('Scan network ?[y/n] ')
-##user_scan = raw_input('Scan network ? [y/n] ') # Python 2.X compatibility
 if (user_scan == 'y'
         or user_scan == 'Y'
         or user_scan == 'yes'
@@ -271,7 +254,6 @@ if (user_scan == 'y'
         try:
             next(ip_iter)
             user_scan = input('Scan next subnet ?[y/n] ')
-##            user_scan = raw_input('Scan next subnet ? [y/n] ') 
             if user_scan == 'y':
                 user_scan = True                
             elif user_scan == 'n':
@@ -283,4 +265,3 @@ if (user_scan == 'y'
 elif user_scan == 'n':
     print('Scan canceled')
     pass
-        
