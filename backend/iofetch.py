@@ -47,22 +47,6 @@ TYPE = 'type'
 TYPE_IN = 'input'
 TYPE_OUT = 'output'
 
-total_ip = []
-
-
-part_a = []
-part_b = []
-current_part = part_a
-hostaddr = [192,168,1,None]
-for item in hostaddr:
-    if item or item == 0:
-        current_part.append(item)
-    else:
-        current_part = part_b
-
-part_a_str = [str(i) for i in part_a]
-subnet = '.'.join(part_a_str) + '.'
-
 
 def find_audio():
     """
@@ -161,10 +145,10 @@ def find_usbcam():
     return video_dev  
     
     
-def scan_subnet(partial_IP):
+def scan_subnet(ip_range):
     """
-    Scans the entire subnet of partial_IP.
-    partial_IP has to be passed as a list (e.g. :[192,168,0]) 
+    Scans the entire subnet of ip_range.
+    ip_range has to be passed as a list (e.g. :[192,168,0,]) 
 
     Yields a list of all connected devices on a given subnet.
     """
@@ -178,38 +162,59 @@ def scan_subnet(partial_IP):
 #      --> easy retreiving of all IP in GUI
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    netmask = 24
+    # Zone that has to be moved into the future input checker function `input_chk`
+    # ----------------------------------------------------------------------------
+    target_ip, netmask = ip_range.split('/')
+    netmask = int(netmask)
+
+    if netmask > 32:
+        print('[ERROR] Wrong value for netmask :: too high must be between 16 and 31 ')
+        return
+    elif netmask == 32:
+        print('[WARN] No subnet to scan :: netmask value must be between 16 and 31')
+        return
+    elif netmask < 16:
+        print('[ERROR] Wrong value for netmask :: too low must be between 16 and 31')
+        return
+    # -----------------------------------------------------------------------------
+
     avail_ip = []
-    length = len(partial_IP)
-    partial_IP_str = [str(i) for i in partial_IP]
-    subnet_str = '.'.join(partial_IP_str) + '.'
+    ip_length = len(target_ip.split('.'))
+
+    # Building command-line
     cmd_first = 'fping -c 1 -q -a -g '
-    cmd_mid = ''
-    cmd_last = '/' + str(netmask) + '> ' + IPSCAN_FILEPATH + ' 2>&1'
-    
-    if length == 1:
+    cmd_last = target_ip + '/' + str(netmask) + '> ' + IPSCAN_FILEPATH + ' 2>&1'
+
+    if ip_length == 1:
         print('[ERROR] A-type network scanning not allowed :: too broad')
-    elif length == 2:
-        print('Scanning network...')
-        for i in range(255):
-            cmd_mid = subnet_str + str(i) + '.0'
-            full_cmd = cmd_first + cmd_mid + cmd_last
-            system(full_cmd)
-            has_no_host = True
-            avail_ip = parse_scan_result(IPSCAN_FILEPATH,
-                                         NO_HOST_MSG,
-                                         HOST_MSG,
-                                         cmd_mid,)
-            yield avail_ip
-    elif length == 3:
-        cmd_mid = subnet_str + '0'
-        full_cmd = cmd_first + cmd_mid + cmd_last
+    # B-type subnet scan
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # --> Will be enabled soon <--
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+##    elif netmask < 24:
+##        print('Scanning multiple network...')
+##        # Number of iteration to perform depending on `netmask`
+##        iter_nb = 2**(24 - netmask)
+##        if iter_nb == 256 : iter_nb -= 1
+##        print('ITER_NUMBER = ', iter_nb)
+##        for i in range(iter_nb):
+##            full_cmd = cmd_first + cmd_last
+##            system(full_cmd)
+##            has_no_host = True
+##            avail_ip = parse_scan_result(IPSCAN_FILEPATH,
+##                                         NO_HOST_MSG,
+##                                         HOST_MSG,
+##                                         cmd_mid,)
+##            yield avail_ip
+    # C-type subnet scan
+    elif netmask >= 24:
+        full_cmd = cmd_first + cmd_last
         print('Scanning network...')
         system(full_cmd)
         avail_ip = parse_scan_result(IPSCAN_FILEPATH,
                                      NO_HOST_MSG,
                                      HOST_MSG,
-                                     cmd_mid,) 
+                                     ip_range,) 
 
 def parse_scan_result(path, no_host_msg, host_msg, subnet):
     """Parse tmp file created during scanning a subnet."""
@@ -240,28 +245,32 @@ def update_deviceinfo(device_dict, field, *pargs, update_msg=None, **kargs):
     else:
         print('[INFO] Updating dict failed - \'field\' is empty or have length > 1')
 
-    
-# Use iterator manually via CDL
-# -----------------------------
-user_scan = input('Scan network ?[y/n] ')
-if (user_scan == 'y'
-        or user_scan == 'Y'
-        or user_scan == 'yes'
-        or user_scan == 'Yes'):
-    user_scan = True
-    ip_iter = scan_subnet(part_a)
-    while user_scan:
-        try:
-            next(ip_iter)
-            user_scan = input('Scan next subnet ?[y/n] ')
-            if user_scan == 'y':
-                user_scan = True                
-            elif user_scan == 'n':
-                user_scan = False
-                print('Scan aborted')
-        except:
-            print('Scan completed')
-            break
-elif user_scan == 'n':
-    print('Scan canceled')
-    pass
+def scan_tester():    
+    # Use iterator manually via CDL
+    # -----------------------------
+    user_scan = (input('Scan network ?[y/n] ')).lower()
+    cond_yes = user_scan == 'y' or user_scan == 'yes'
+    cond_no = user_scan == 'n' or user_scan == 'no'
+
+    if cond_yes:
+        addr_dest = input('Type [ip]/[netmask] to start scanning : ')
+        user_scan = True
+        ip_iter = scan_subnet(addr_dest)
+        while user_scan:
+            try:
+                next(ip_iter)
+                user_scan = input('Scan next subnet ?[y/n] ')
+                if cond_yes:
+                    user_scan = True                
+                elif cond_no:
+                    user_scan = False
+                    print('Scan aborted')
+            except:
+                print('Scan completed')
+                break
+    elif cond_no:
+        print('Scan canceled')
+
+
+if __name__ == '__main__':
+    scan_tester()
