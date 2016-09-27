@@ -1,0 +1,4 @@
+# Ignore all pre-compiled Python files
+*.pyc
+__pycache__/
+backend/__pycache__/
