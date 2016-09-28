@@ -49,18 +49,17 @@ def is_ipaddr(user_input, netmask_required=False, netmask_range=[0,32], debug=Tr
 
     ip_addr = None
     
-    if netmask_required:
-        if SLASH not in user_input:
+    if netmask_required and SLASH not in user_input:
             if debug: print(NO_NETMASK_MSG)
             return False
-        else:
-            ip_addr, netmask = user_input.split('/')
-            if not netmask.isdigit():
-                if debug: print(IS_NOT_NUMB_MSG)
-                return False
-            if int(netmask) < netmask_range[0] or int(netmask) > netmask_range[1]:
-                if debug: print(WRONG_NETMASK_MSG)
-                return False
+    elif SLASH in user_input:
+        ip_addr, netmask = user_input.split('/')
+        if not netmask.isdigit():
+            if debug: print(IS_NOT_NUMB_MSG)
+            return False
+        if int(netmask) < netmask_range[0] or int(netmask) > netmask_range[1]:
+            if debug: print(WRONG_NETMASK_MSG)
+            return False
 
     if ip_addr: ipfields = ip_addr.split('.')
     else: ipfields = user_input.split('.')
@@ -112,7 +111,7 @@ def inputchk(msg, intype=YESNO, *pargs, **kargs):
             if is_ipaddr(user_inp):
                 is_bad_input = False
             else:
-                print('Please type a correct IPV4 address : ')
+                print('Please type a correct IPV4 address : ', end='')
                 user_inp = input()
     else:
         return user_inp
@@ -194,11 +193,10 @@ def _is_ipaddr_tester(verbose=False):
     ip_loop(bad_inputs, verbose, noted=True)
     
     
-def tester():
+def _inputchk_tester(interactive=False):
     """
-    Tests functions of utils module.
+    Tests `is_ipaddr` function when utils.py is launched as standalone
     """
-    # Input checker `inputchk` user-test unit
     INPUT_TEST = 'input test : '
     MSG_YESNO = YESNO + ' ' + INPUT_TEST
     MSG_NUMBER = NUMBER + ' ' + INPUT_TEST
@@ -215,5 +213,5 @@ def tester():
         
 if __name__ == '__main__':
     _is_ipaddr_tester(verbose=True)
-    tester()
+    _inputchk_tester()
     
