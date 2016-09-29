@@ -82,15 +82,22 @@ def is_ipaddr(user_input, netmask_required=False, netmask_range=[0,32], debug=Tr
         return True
 
     
-def inputchk(msg, intype=YESNO, *pargs, **kargs):
+def inputchk(msg, intype=YESNO, verbose=False, input_test=None, *pargs, **kargs):
     """
     Checks user input based on input type `intype`.
 
+    `msg` prints message to stdout to inform user before typing.
+    `intype` sets the kind of handling for string that just have been typed. 
+    `verbose` prints message at stdout if set to `True`.
+    `input_test` is a defined string passed by a tester function.
+    
     Returns a correctly formatted user input.
     """
     is_bad_input = True
 
-    user_inp = (input(msg)).lower()
+    if not input_test: user_inp = (input(msg)).lower()
+    else: user_inp = input_test
+    
     while is_bad_input:
         if intype == YESNO:
             if (user_inp == 'y' or
@@ -99,20 +106,25 @@ def inputchk(msg, intype=YESNO, *pargs, **kargs):
                     user_inp == 'no'):
                 is_bad_input = False
             else:
+                if input_test: return is_bad_input
                 print('Please type: y, yes, n, no : ', end='')
                 user_inp = (input()).lower()
         elif intype == NUMBER:
             if user_inp.isdigit():
                 is_bad_input = False
             else:
+                if input_test: return is_bad_input
                 print('Please type a number : ', end='')
                 user_inp = (input()).lower()
         elif intype == IP_ADDR:
             if is_ipaddr(user_inp):
                 is_bad_input = False
             else:
+                if input_test: return is_bad_input
                 print('Please type a correct IPV4 address : ', end='')
                 user_inp = input()
+        else:
+            print('[ERROR] Input type -> "', input_type, '" doesn\'t exist.', sep='')
     else:
         return user_inp
 
@@ -121,7 +133,7 @@ def _is_ipaddr_tester(verbose=False):
     """
     Tests `is_ipaddr` function when utils.py is launched as standalone
 
-    If `verbose` karg is set to `True`, it prints each succeed steps,
+    If `verbose` is set to `True`, it prints each succeed steps,
     otherwise it prints only in case of failing.
     If test fails, it prints to stdout where the testing loop stopped.
     """
@@ -193,10 +205,34 @@ def _is_ipaddr_tester(verbose=False):
     ip_loop(bad_inputs, verbose, noted=True)
     
     
-def _inputchk_tester(interactive=False):
+def _inputchk_tester(interactive=False, verbose=False):
     """
-    Tests `is_ipaddr` function when utils.py is launched as standalone
+    Tests `inputchk` function when utils.py is launched as standalone
+    It performs only YESNO and NUMBER input tests when `interactive` is
+    set to `False` since IP_ADDR input type is tested in another test unit.
+
+    If `verbose` is set to `True`, it prints each succeed steps,
+    otherwise it prints only in case of failing.
+    If test fails, it prints to stdout where the testing loop stopped.
     """
+    def input_loop(input_dict, verbose):
+        """
+        Loops over a dict of inputs and prints messages on stdout.
+        
+        Set `noted` to `True` to reverse boolean logic (False = True).
+        It's used to make bad inputs pass the test since `is_ipaddr`
+        function would return `False` in case of bad input.
+        """
+        for key in input_dict:
+            for item in input_dict[key]:
+                result = inputchk('', intype=key, input_test=item)
+                if result:
+                    if verbose: print(TEST_INFO_MSG, key, item, OK_MSG)
+                else:
+                    print(TEST_INFO_MSG, key, item, FAIL_MSG)
+        else:
+            if verbose: print(TEST_SECTION_END_MSG)
+
     INPUT_TEST = 'input test : '
     MSG_YESNO = YESNO + ' ' + INPUT_TEST
     MSG_NUMBER = NUMBER + ' ' + INPUT_TEST
@@ -204,14 +240,44 @@ def _inputchk_tester(interactive=False):
     inputchk_tests = [(MSG_YESNO, YESNO),
                        (MSG_NUMBER, NUMBER),
                        (MSG_IP_ADDR, IP_ADDR),]
-    for msg, input_type in inputchk_tests:
-        user_input = inputchk(msg, intype=input_type)
-        if user_input:
-            print(msg, '\t\t[OK]')
-        else:
-            print(msg, '\t\t[FAIL]')
+    # Good inputs section vars :
+    yesno_ok1 = 'y'
+    yesno_ok2 = 'yes'
+    yesno_ok3 = 'n'
+    yesno_ok4 = 'no'
+    numb_ok1 = '1'
+    numb_ok2 = '123456789'
+    good_inputs = {YESNO : [yesno_ok1, yesno_ok2, yesno_ok3, yesno_ok4],
+                   NUMBER : [numb_ok1, numb_ok2]}
+    # Bad inputs section vars :
+    yesno_bad1 = 'abc'
+    yesno_bad2 = '123'
+    yesno_bad3 = 'yy'
+    yesno_bad4 = 'nn'
+    yesno_bad5 = 'ye'
+    yesno_bad6 = 'nn'
+    numb_bad1 = 'spam'
+    numb_bad2 = '-1'
+    bad_inputs = {YESNO : [yesno_bad1, yesno_bad2, yesno_bad3,
+                           yesno_bad4, yesno_bad5, yesno_bad6],
+                  NUMBER : [numb_bad1, numb_bad2]}
+    
+    if interactive:
+        for msg, input_type in inputchk_tests:
+            user_input = inputchk(msg, intype=input_type)
+            if user_input:
+                if verbose: print(msg, '\t\t[OK]')
+            else:
+                if verbose: print(msg, '\t\t[FAIL]')
+    else:
+        # If good_inputs pass the test, it returns a string
+        input_loop(good_inputs, verbose)
+        # If bad_inputs pass the test, it return `True`
+        input_loop(bad_inputs, verbose)
+
+
         
 if __name__ == '__main__':
-    _is_ipaddr_tester(verbose=True)
+    _is_ipaddr_tester()
     _inputchk_tester()
     
