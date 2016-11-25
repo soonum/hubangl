@@ -23,7 +23,7 @@ import re
 
 # Input type
 YESNO = 'yesno'
-IP_ADDR = 'ip_addr'
+IP_ADDRESS = 'ip_address'
 NUMBER = 'number'
 # Messages printed to stdout
 OK_MSG = '\t\t[OK]'
@@ -57,14 +57,14 @@ def is_ipaddr(user_input,
     WRONG_IP_MSG = ('[ERROR] Wrong value for IP field :: '
                     + 'inputs must be between 0 and 255')
 
-    ip_addr = None
+    ip_address = None
 
     if netmask_required and SLASH not in user_input:
             if debug:
                 print(NO_NETMASK_MSG)
             return False
     elif SLASH in user_input:
-        ip_addr, netmask = user_input.split('/')
+        ip_address, netmask = user_input.split('/')
         if not netmask.isdigit():
             if debug:
                 print(IS_NOT_NUMB_MSG)
@@ -74,30 +74,47 @@ def is_ipaddr(user_input,
                 print(WRONG_NETMASK_MSG)
             return False
 
-    if ip_addr:
-        ipfields = ip_addr.split('.')
+    if ip_address:
+        retvalue = has_valid_ip(ip_address)
     else:
-        ipfields = user_input.split('.')
+        retvalue = has_valid_ip(user_input)
+
+    return retvalue
+
+
+def has_valid_ip(ip_string):
+    """
+    Check if `ip_string` is a valid ip address format.
+
+    Note: Only IPV4 is valid for v1.0
+    """
+    IPV4_LEN = 4
+    ipfields = ip_string.split(".")
+    port = None
 
     if len(ipfields) < IPV4_LEN:
-        if debug:
-            print(NOT_ENOUGH_FIELDS_MSG)
-        return False
+        raise ValueError
+
+    if ":" in ipfields[-1]:
+        ipfields[-1], port = ipfields[-1].split(":")
 
     for field in ipfields:
-        if not field or not field.isdigit():
-            if debug:
-                print(WRONG_IP_MSG)
-            return False
+        if not field.isdigit():
+            raise ValueError
 
-        if int(field) >= 0 and int(field) <= 255:
-            continue
-        else:
-            if debug:
-                print(WRONG_IP_MSG)
-            return False
+        if not(int(field) >= 0 and int(field) <= 255):
+            raise ValueError
     else:
-        return True
+        return True, port
+
+
+def get_port(ip_string):
+    """
+    Return the port of a valid ip address.
+    """
+    retvalue, port = has_valid_ip(ip_string)
+    if retvalue and port:
+        return port
 
 
 def inputchk(msg, intype=YESNO, verbose=False, input_test=None,
@@ -139,7 +156,7 @@ def inputchk(msg, intype=YESNO, verbose=False, input_test=None,
                     return is_bad_input
                 print('Please type a number : ', end='')
                 user_inp = (input()).lower()
-        elif intype == IP_ADDR:
+        elif intype == IP_ADDRESS:
             if is_ipaddr(user_inp):
                 is_bad_input = False
             else:
@@ -190,6 +207,7 @@ def _asciiconvert_tester(verbose=False):
     Tests `asciiconvert` function when utils.py is launched as standalone.
     """
     # TODO: Has to be implemented
+
 
 def _is_ipaddr_tester(verbose=False):
     """
@@ -276,7 +294,7 @@ def _inputchk_tester(interactive=False, verbose=False):
     """
     Tests `inputchk` function when utils.py is launched as standalone
     It performs only YESNO and NUMBER input tests when `interactive` is
-    set to `False` since IP_ADDR input type is tested in another test unit.
+    set to `False` since IP_ADDRESS input type is tested in another test unit.
 
     If `verbose` is set to `True`, it prints each succeed steps,
     otherwise it prints only in case of failing.
@@ -305,10 +323,10 @@ def _inputchk_tester(interactive=False, verbose=False):
     INPUT_TEST = 'input test : '
     MSG_YESNO = YESNO + ' ' + INPUT_TEST
     MSG_NUMBER = NUMBER + ' ' + INPUT_TEST
-    MSG_IP_ADDR = IP_ADDR + ' ' + INPUT_TEST
+    MSG_IP_ADDRESS = IP_ADDRESS + ' ' + INPUT_TEST
     inputchk_tests = [(MSG_YESNO, YESNO),
                       (MSG_NUMBER, NUMBER),
-                      (MSG_IP_ADDR, IP_ADDR)]
+                      (MSG_IP_ADDRESS, IP_ADDRESS)]
     # Good inputs section vars :
     yesno_ok1 = 'y'
     yesno_ok2 = 'yes'
