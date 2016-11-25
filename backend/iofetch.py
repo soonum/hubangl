@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of HUBAngl.
-# HUBAngl Uses Broadcaster Angle 
+# HUBAngl Uses Broadcaster Angle
 #
 # HUBAngl is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,14 +22,14 @@
 #######################################################################
 # TODO:
 # - Add IP address fetching (from GUI)
-# - Add input checker (for scanning network in console mode) 
+# - Add input checker (for scanning network in console mode)
 #######################################################################
 
 from os import listdir
 from os import system
 from os import path
 
-IPSCAN_FILEPATH =r'/tmp/ipscan'
+IPSCAN_FILEPATH = r'/tmp/ipscan'
 NO_HOST_MSG = 'No host reachable on'
 HOST_MSG = '-**- IP available -**-\n'
 
@@ -62,11 +62,12 @@ def find_audio():
     AUDIO_DEV_LIST_PATH = r'/tmp/audio_dev'
     audio_dev = {}
     cmd = 'pactl list > ' + AUDIO_DEV_LIST_PATH + ' 2>&1'
-    
+
     system(cmd)
     audio_dev = parse_pactl_list(AUDIO_DEV_LIST_PATH, audio_dev)
 
     return audio_dev
+
 
 def parse_pactl_list(filepath, output_dict,):
     """
@@ -82,34 +83,37 @@ def parse_pactl_list(filepath, output_dict,):
     dev_descrip = ''
     is_input = False
     is_output = False
-    
+
     with open(filepath, 'r') as f:
         for line in f:
             if NAME_LINE in line:
                 dev_name = line[(len(NAME_LINE) + 1):].rstrip()
-                if INPUT in dev_name: is_input = True
-                elif OUTPUT in dev_name: is_output = True
-            elif DESCRIP_LINE in line :
+                if INPUT in dev_name:
+                    is_input = True
+                elif OUTPUT in dev_name:
+                    is_output = True
+            elif DESCRIP_LINE in line:
                 dev_descrip = line[(len(DESCRIP_LINE) + 1):].rstrip()
 
             if dev_name and dev_descrip:
                 if is_input:
-                    entry = {dev_name : {DESCRIP : dev_descrip,
-                                         CLASS : CLASS_AUDIO,
-                                         TYPE : TYPE_IN,
-                                         GSTELEM : GSTINIT,}}
+                    entry = {dev_name: {DESCRIP: dev_descrip,
+                                        CLASS: CLASS_AUDIO,
+                                        TYPE: TYPE_IN,
+                                        GSTELEM: GSTINIT}}
                 if is_output:
-                    entry = {dev_name : {DESCRIP : dev_descrip,
-                                         CLASS : CLASS_AUDIO,
-                                         TYPE : TYPE_OUT,
-                                         GSTELEM : GSTINIT,}}
+                    entry = {dev_name: {DESCRIP: dev_descrip,
+                                        CLASS: CLASS_AUDIO,
+                                        TYPE: TYPE_OUT,
+                                        GSTELEM: GSTINIT}}
                 output_dict.update(entry)
                 dev_name = ''
                 dev_descrip = ''
                 is_input = False
                 is_output = False
     return output_dict
-                
+
+
 def find_usbcam():
     """
     Looks for all USB camera currently connected.
@@ -125,7 +129,7 @@ def find_usbcam():
     DEVICE_RAW_PATH = r'/dev/'
     VIDEO_DEVICE_PATH = r'/sys/class/video4linux/'
     video_dev = {}
-    
+
     # Using /dev/videoX name
     dev_list = [DEVICE_RAW_PATH + dev for dev in listdir(DEVICE_RAW_PATH)
                 if CLASS_VIDEO in dev]
@@ -137,22 +141,22 @@ def find_usbcam():
         for i in dev_list:
             splitted = i.split('/')
             if splitted[-1] in dev:
-                video_dev.update({i : {DESCRIP : dev_name,
-                                       CLASS : CLASS_VIDEO,
-                                       COMM : COMM_USB,
-                                       TYPE: TYPE_IN,
-                                       GSTELEM : GSTINIT,}})
-    return video_dev  
-    
-    
+                video_dev.update({i: {DESCRIP: dev_name,
+                                      CLASS: CLASS_VIDEO,
+                                      COMM: COMM_USB,
+                                      TYPE: TYPE_IN,
+                                      GSTELEM: GSTINIT}})
+    return video_dev
+
+
 def scan_subnet(ip_range):
     """
     Scans the entire subnet of ip_range.
-    ip_range has to be passed as a list (e.g. :[192,168,0,]) 
+    ip_range has to be passed as a list (e.g. :[192,168,0,])
 
     Yields a list of all connected devices on a given subnet.
     """
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #    - Make 'fping' dependance of the software
 #    - Add an user interface to scan_subnet to handle the iterator
 #      (so as to scan one subnet at a time based on user decision
@@ -160,21 +164,25 @@ def scan_subnet(ip_range):
 #    - Gather results of all IP found in one list of lists
 #      (or dict of lists with key = subnet) when scan ends.
 #      --> easy retreiving of all IP in GUI
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    # Zone that has to be moved into the future input checker function `input_chk`
-    # ----------------------------------------------------------------------------
+    # Zone that has to be moved into the
+    # future input checker function `input_chk`
+    # -----------------------------------------
     target_ip, netmask = ip_range.split('/')
     netmask = int(netmask)
 
     if netmask > 32:
-        print('[ERROR] Wrong value for netmask :: too high must be between 16 and 31 ')
+        print('[ERROR] Wrong value for netmask ::',
+              'too high must be between 16 and 31 ')
         return
     elif netmask == 32:
-        print('[WARN] No subnet to scan :: netmask value must be between 16 and 31')
+        print('[WARN] No subnet to scan ::',
+              'netmask value must be between 16 and 31')
         return
     elif netmask < 16:
-        print('[ERROR] Wrong value for netmask :: too low must be between 16 and 31')
+        print('[ERROR] Wrong value for netmask ::',
+              'too low must be between 16 and 31')
         return
     # -----------------------------------------------------------------------------
 
@@ -183,7 +191,8 @@ def scan_subnet(ip_range):
 
     # Building command-line
     cmd_first = 'fping -c 1 -q -a -g '
-    cmd_last = target_ip + '/' + str(netmask) + '> ' + IPSCAN_FILEPATH + ' 2>&1'
+    cmd_last = (target_ip + '/' + str(netmask)
+                + '> ' + IPSCAN_FILEPATH + ' 2>&1')
 
     if ip_length == 1:
         print('[ERROR] A-type network scanning not allowed :: too broad')
@@ -191,21 +200,21 @@ def scan_subnet(ip_range):
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # --> Will be enabled soon <--
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-##    elif netmask < 24:
-##        print('Scanning multiple network...')
-##        # Number of iteration to perform depending on `netmask`
-##        iter_nb = 2**(24 - netmask)
-##        if iter_nb == 256 : iter_nb -= 1
-##        print('ITER_NUMBER = ', iter_nb)
-##        for i in range(iter_nb):
-##            full_cmd = cmd_first + cmd_last
-##            system(full_cmd)
-##            has_no_host = True
-##            avail_ip = parse_scan_result(IPSCAN_FILEPATH,
-##                                         NO_HOST_MSG,
-##                                         HOST_MSG,
-##                                         cmd_mid,)
-##            yield avail_ip
+#    elif netmask < 24:
+#        print('Scanning multiple network...')
+#        # Number of iteration to perform depending on `netmask`
+#        iter_nb = 2**(24 - netmask)
+#        if iter_nb == 256 : iter_nb -= 1
+#        print('ITER_NUMBER = ', iter_nb)
+#        for i in range(iter_nb):
+#            full_cmd = cmd_first + cmd_last
+#            system(full_cmd)
+#            has_no_host = True
+#            avail_ip = parse_scan_result(IPSCAN_FILEPATH,
+#                                         NO_HOST_MSG,
+#                                         HOST_MSG,
+#                                         cmd_mid,)
+#            yield avail_ip
     # C-type subnet scan
     elif netmask >= 24:
         full_cmd = cmd_first + cmd_last
@@ -214,7 +223,8 @@ def scan_subnet(ip_range):
         avail_ip = parse_scan_result(IPSCAN_FILEPATH,
                                      NO_HOST_MSG,
                                      HOST_MSG,
-                                     ip_range,) 
+                                     ip_range,)
+
 
 def parse_scan_result(path, no_host_msg, host_msg, subnet):
     """Parse tmp file created during scanning a subnet."""
@@ -243,9 +253,11 @@ def update_deviceinfo(device_dict, field, *pargs, update_msg=None, **kargs):
         device_dict.update(field)
         print(update_msg)
     else:
-        print('[INFO] Updating dict failed - \'field\' is empty or have length > 1')
+        print('[INFO] Updating dict failed ',
+              '- \'field\' is empty or have length > 1')
 
-def scan_tester():    
+
+def scan_tester():
     # Use iterator manually via CDL
     # -----------------------------
     user_scan = (input('Scan network ?[y/n] ')).lower()
@@ -261,7 +273,7 @@ def scan_tester():
                 next(ip_iter)
                 user_scan = input('Scan next subnet ?[y/n] ')
                 if cond_yes:
-                    user_scan = True                
+                    user_scan = True
                 elif cond_no:
                     user_scan = False
                     print('Scan aborted')
