@@ -118,3 +118,11 @@ class StreamInfoIncomplete(Error):
     Gst element are not filled.
     """
     default_message = "Streaming information incomplete"
+
+
+class TransportElementNotFound(Error):
+    """
+    Error raised when a Gst TCP element like a tcpclientsink or tcpserversrc
+    is not found.
+    """
+    default_message = "Transport element not found"

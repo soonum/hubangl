@@ -50,14 +50,14 @@ TYPE_OUT = 'output'
 
 def find_audio():
     """
-    Looks for all input/output audio device available,
-    based on pulseaudio server.
+    Looks for all input/output audio device available, based on pulseaudio
+    server.
 
-    Returns a dict formatted like:
-    {device_name : {descrip : device_descrip,
-                    class : CLASS_AUDIO,
-                    type : in/out,
-                    gstelement : None}}
+    Returns a dict with key formatted like:
+    device_name: {description: device_descrip,
+                  class: CLASS_AUDIO,
+                  type: in/out,
+                  gstelement: None}}
     """
     AUDIO_DEV_LIST_PATH = r'/tmp/audio_dev'
     audio_dev = {}
@@ -119,11 +119,11 @@ def find_usbcam():
     Looks for all USB camera currently connected.
 
     Return a dict formatted like: {device_name : device_path}.
-    {device_location : {descrip : device_descrip,
-                        class : CLASS_VIDEO
-                        comm : COMM_USB
-                        type : in/out
-                        gstelement : None}}
+    {device_location: {description: device_descrip,
+                       class: CLASS_VIDEO
+                       comm: COMM_USB
+                       type: in/out
+                       gstelement: None}}
     """
     DEVICE_ID_PATH = r'/dev/v4l/by-id/'
     DEVICE_RAW_PATH = r'/dev/'
@@ -257,6 +257,31 @@ def update_deviceinfo(device_dict, field, *pargs, update_msg=None, **kargs):
               '- \'field\' is empty or have length > 1')
 
 
+def get_audio_source_name():
+    """
+    """
+    audio_sources = []
+    audio_devices = find_audio()
+    for device in audio_devices:
+        if audio_devices[device][TYPE] == TYPE_OUT:
+            continue
+        if "HDMI" in audio_devices[device][DESCRIP]:
+            continue
+        audio_sources.append(audio_devices[device][DESCRIP])
+    return audio_sources
+
+
+def get_usb_video_source_name():
+    """
+    """
+    usb_sources = []
+    usb_devices = find_usbcam()
+    for device in usb_devices:
+        usb_sources.append(usb_devices[device][DESCRIP])
+    return usb_sources
+
+
+# TODO: transfer to a unittest case
 def scan_tester():
     # Use iterator manually via CDL
     # -----------------------------
@@ -285,4 +310,6 @@ def scan_tester():
 
 
 if __name__ == '__main__':
-    scan_tester()
+    find_audio()
+    #scan_tester()
+    
