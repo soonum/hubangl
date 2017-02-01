@@ -28,7 +28,8 @@ You must have a GNU/Linux distribution and python3.4 or greater in order to laun
 Launch HUBAngl
 ==============
 
-$ python3  ./user_interface/main_window.py
+$ cd user_interface/
+$ python3  main_window.py
 
 
 Happy Broadcasting.
