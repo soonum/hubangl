@@ -67,12 +67,10 @@ class NewFeed:
         self.video_monitor = Gtk.DrawingArea()
         self.video_monitor.set_margin_left(6)
         self.video_monitor.set_margin_right(6)
-        #self.video_monitor.set_hexpand(True)
+        self.video_monitor.set_margin_bottom(6)
         self.video_monitor.set_halign(Gtk.Align.FILL)
-        #self.video_monitor.set_vexpand(True)
         self.video_monitor.set_valign(Gtk.Align.FILL)
-        # FIXME: Set to automatic sizing
-        self.video_monitor.set_size_request(1000, 500)
+        self.video_monitor.set_size_request(700, 400)
 
         self.placeholder_pipeline = self.get_placeholder_pipeline()
         self.placeholder_bus = self.create_gstreamer_bus(
@@ -103,9 +101,8 @@ class NewFeed:
         self.vumeter_box = self._build_vumeter()
         self.controls.overlay_container.add_overlay(self.vumeter_box)
 
-        _pack_widgets(self.hbox,
-                      self.controls.overlay_container,
-                      self.menu_revealer,)
+        self.hbox.pack_start(self.controls.overlay_container, True, True, 0)
+        self.hbox.pack_start(self.menu_revealer, False, False, 0)
 
     def set_xid(self):
         self.xid = self.video_monitor.get_property("window").get_xid()
@@ -255,14 +252,63 @@ class ControlBar:
         self.controlbox.set_margin_bottom(6)
         self.controlbox.set_halign(Gtk.Align.CENTER)
 
-        self.toolbar = Gtk.Toolbar()
+        self._load_toolbutton_icons()
+        self.toolbar = self._build_toolbar()
 
+        self._build_audio_volume()  # TODO: integrate it into _build_toolbar
+
+    def display_controls(self):
+        _pack_widgets(self.controlbox, self.toolbar)
+        self.overlay_container.add_overlay(self.controlbox)
+
+    def _load_toolbutton_icons(self):
+        """
+        Load all images used as icons for :class:`Gtk.ToolButton`.
+        """
+        self.play_icon = Gtk.Image()
+        self.play_icon.set_from_file("")
+        self.pause_icon = Gtk.Image()
+        self.pause_icon.set_from_file("")
+        self.stop_icon = Gtk.Image()
+        self.stop_icon.set_from_file("")
+        self.video_icon = Gtk.Image()
+        self.video_icon.set_from_file("")
+        self.audio_icon = Gtk.Image()
+        self.audio_icon.set_from_file("")
+        self.stream_icon = Gtk.Image()
+        self.stream_icon.set_from_file("")
+        self.store_icon = Gtk.Image()
+        self.store_icon.set_from_file("")
+        self.audiolevel_icon = Gtk.Image()
+        self.audiolevel_icon.set_from_file("")
+
+    def _build_toolbutton(self, name, icon=None,
+                          on_signal=None, callback=None, tooltip_text=None):
+        toolbutton = Gtk.ToolButton(icon, name)
+        # FIXME: Tooltip text does not appear on the screen
+        if not tooltip_text:
+            toolbutton.set_tooltip_text(name)
+        else:
+            toolbutton.set_tooltip_text(tooltip_text)
+
+        if on_signal and callback:
+            toolbutton.connect(on_signal, callback)
+        return toolbutton
+
+    def _build_toolbar(self):
+        """
+        """
+        toolbar = Gtk.Toolbar()
+
+        #play_icon = Gtk.Image()  # DEBUG
+        #play_icon.set_from_file("/home/el_diivaad/Documents/Coding/Python/hubangl/images/Play_PNG_Icone_24-24_px.png")  # DEBUG
         self.play_button = self._build_toolbutton(
             "Play",
-            icon=Gtk.STOCK_MEDIA_PLAY,
+            icon=Gtk.STOCK_MEDIA_PLAY,  # DEBUG
             on_signal="clicked",
             callback=self.on_play_clicked
         )
+        #self.play_button.set_icon_widget(play_icon)  # DEBUG
         self.stop_button = self._build_toolbutton(
             "Stop",
             icon=Gtk.STOCK_MEDIA_STOP,
@@ -279,12 +325,15 @@ class ControlBar:
             on_signal="clicked",
             callback=self.audio_menu.on_audio_input_clicked
         )
+        #stream_icon = Gtk.Image()  # DEBUG
+        #stream_icon.set_from_file("/home/el_diivaad/Documents/Coding/Python/hubangl/images/Streaming_PNG_Icone_24-24_px.png")  # DEBUG
         self.stream_button = self._build_toolbutton(
             "Stream",
-            icon=Gtk.STOCK_NETWORK,
+            icon=Gtk.STOCK_NETWORK,  # DEBUG
             on_signal="clicked",
             callback=self.stream_menu.on_stream_clicked
         )
+        #self.stream_button.set_icon_widget(stream_icon)  # DEBUG
         self.store_button = self._build_toolbutton(
             "Store",
             icon=Gtk.STOCK_HARDDISK,
@@ -297,9 +346,10 @@ class ControlBar:
             on_signal="clicked",
             callback=self.info_menu.on_info_clicked
         )
+        # FIXME: build this toolbutton correctly
         self.audio_level_button = Gtk.ToolButton("Audio lvl",)
 
-        self._populate_toolbar(self.toolbar,
+        self._populate_toolbar(toolbar,
                                self.play_button,
                                self.stop_button,
                                self.video_button,
@@ -307,24 +357,7 @@ class ControlBar:
                                self.stream_button,
                                self.store_button,
                                self.info_button)
-        self._build_audio_volume()
-
-    def display_controls(self):
-        _pack_widgets(self.controlbox, self.toolbar)
-        self.overlay_container.add_overlay(self.controlbox)
-
-    def _build_toolbutton(self, name, icon=None,
-                          on_signal=None, callback=None, tooltip_text=None):
-        toolbutton = Gtk.ToolButton(icon, name)
-        # FIXME: Tooltip text does not appear on the screen
-        if not tooltip_text:
-            toolbutton.set_tooltip_text(name)
-        else:
-            toolbutton.set_tooltip_text(tooltip_text)
-
-        if on_signal and callback:
-            toolbutton.connect(on_signal, callback)
-        return toolbutton
+        return toolbar
 
     def _populate_toolbar(self, toolbar, *toolbuttons):
         """
@@ -433,14 +466,13 @@ class AbstractMenu:
         button = Gtk.Button(label)
         button.set_sensitive(False)
         button.set_margin_top(12)
-
         if callback:
             button.connect(signal, callback)
 
         return button
 
     def _build_add_button(self, label=None, signal="clicked",
-                                  callback=None):
+                          callback=None):
         """
         Build an add button usable in side bar menu.
         This button triggers allow the creation of a new element in the menu.
@@ -449,7 +481,7 @@ class AbstractMenu:
             label = "Add"
         button = Gtk.Button(label, stock=Gtk.STOCK_ADD)
         button.set_margin_top(12)
-
+        button.set_size_request(250, 20)
         if callback:
             button.connect(signal, callback)
 
@@ -458,28 +490,29 @@ class AbstractMenu:
     def _build_ipv4_entry(self):
         """
         """
-        field1 = Gtk.Entry()
-        field2 = Gtk.Entry()
-        field3 = Gtk.Entry()
-        field4 = Gtk.Entry()
+        self.ipv4_field1 = Gtk.Entry()
+        self.ipv4_field2 = Gtk.Entry()
+        self.ipv4_field3 = Gtk.Entry()
+        self.ipv4_field4 = Gtk.Entry()
 
-        for field in (field1, field2, field3, field4):
+        for field in (self.ipv4_field1, self.ipv4_field2,
+                      self.ipv4_field3, self.ipv4_field4):
             field.set_max_length(3)
             field.set_width_chars(3)
             field.set_input_purpose(Gtk.InputPurpose.DIGITS)
 
-        port_entry = Gtk.Entry()
-        port_entry.set_max_length(5)
-        port_entry.set_width_chars(5)
-        port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
+        self.port_entry = Gtk.Entry()
+        self.port_entry.set_max_length(5)
+        self.port_entry.set_width_chars(5)
+        self.port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
 
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         _pack_widgets(hbox,
-                      field1, Gtk.Label("."),
-                      field2, Gtk.Label("."),
-                      field3, Gtk.Label("."),
-                      field4, Gtk.Label(":"),
-                      port_entry)
+                      self.ipv4_field1, Gtk.Label("."),
+                      self.ipv4_field2, Gtk.Label("."),
+                      self.ipv4_field3, Gtk.Label("."),
+                      self.ipv4_field4, Gtk.Label(":"),
+                      self.port_entry)
         return hbox
 
     def _build_ipv6_entry(self):
@@ -491,7 +524,160 @@ class AbstractMenu:
     def get_ipv4_address(self):
         """
         """
-        pass
+        ip_fields_values = []
+        for field in (self.ipv4_field1, self.ipv4_field2,
+                      self.ipv4_field3, self.ipv4_field4):
+            text = field.get_text()
+            if not text:
+                raise TypeError
+                break
+            ip_fields_values.append(text)
+        else:
+            port_value = self.port_entry.get_text()
+            if not port_value:
+                raise TypeError
+            else:
+                ip_address = ".".join(ip_fields_values)
+                port = int(port_value)
+                return ip_address, port
+
+    def _build_format_section(self, radio_button_label, format_labels,
+                              callback_radio=None, callback_combo=None,
+                              radio_group=None):
+        """
+        """
+        radio_button = Gtk.RadioButton(
+            radio_button_label, group=radio_group)
+        if callback_radio:
+            radio_button.connect("toggled", callback_radio)
+
+        text_label = Gtk.Label("Format : ")
+        combo_box = Gtk.ComboBoxText()
+        for label in format_labels:
+            combo_box.append_text(label)
+            combo_box.set_active(0)
+        # This version accept only one format for each stream type.
+        # There is not point to allow user to use this combo box.
+        # That way the format is displayed as information.
+        combo_box.set_sensitive(False)
+        if callback_combo:
+            combo_box.connect("changed", callback_combo)
+
+        hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+        hbox.set_margin_left(24)
+        _pack_widgets(hbox, text_label, combo_box)
+
+        return (radio_button, hbox, combo_box)
+
+    def _build_format_group(self):
+        """
+        """
+        (self.audiovideo_radiobutton,
+         self._audiovideo_format_hbox,
+         self._audiovideo_format_combobox) = self._build_format_section(
+             "Audio/Video", (".webm",),
+             callback_radio=self.on_format_radiobutton_toggle)
+        self.audiovideo_radiobutton.set_active(True)
+
+        self.current_stream_type = AUDIO_VIDEO_STREAM
+
+        (self.video_radiobutton,
+         self._video_format_hbox,
+         self._video_format_combobox) = self._build_format_section(
+             "Video Only", (".mkv",),
+             callback_radio=self.on_format_radiobutton_toggle,
+             radio_group=self.audiovideo_radiobutton)
+
+        (self.audio_radiobutton,
+         self._audio_format_hbox,
+         self._audio_format_combobox) = self._build_format_section(
+             "Audio Only", (".ogg",),
+             callback_radio=self.on_format_radiobutton_toggle,
+             radio_group=self.audiovideo_radiobutton)
+
+        radiobutton_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        _pack_widgets(radiobutton_hbox,
+                      self.audiovideo_radiobutton,
+                      self.video_radiobutton,
+                      self.audio_radiobutton)
+
+        return radiobutton_hbox
+
+    def _build_summary_box(self, filename):
+        """
+        Build a container that sums up information about an output sink.
+
+        :param filename: filename of stored stream as :class:`str`
+
+        :return: :class:`Gtk.Box`
+        """
+        self.full_filename_label = Gtk.Label(filename)
+        settings_button = Gtk.Button(stock=Gtk.STOCK_PROPERTIES)
+        settings_button.connect("clicked", self.on_settings_clicked)
+
+        summary_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        summary_hbox.set_margin_top(6)
+        _pack_widgets(summary_hbox,
+                      self.full_filename_label, settings_button)
+
+        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        separator.set_margin_top(6)
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        _pack_widgets(vbox,
+                      summary_hbox,
+                      self._revealer,
+                      separator)
+        return vbox
+
+    def _get_format_hbox(self):
+        """
+        Get format horizontal box currently displayed.
+
+        :return: :class:`Gtk.Box`
+        """
+        for format_hbox in (self._audiovideo_format_hbox,
+                            self._video_format_hbox,
+                            self._audio_format_hbox):
+            if format_hbox.get_parent():
+                return format_hbox
+
+    def _get_format_extension(self):
+        """
+        Get format extension from the combo box currently displayed.
+
+        :return: a dotted extension as :class:`str`
+        """
+        hbox = self._get_format_hbox()
+        for combobox in (self._audiovideo_format_combobox,
+                         self._video_format_combobox,
+                         self._audio_format_combobox):
+            if combobox.get_parent() == hbox:
+                return combobox.get_active_text()
+
+    def on_format_radiobutton_toggle(self, widget):
+        raise NotImplementedError
+
+    def _change_output_format(self, widget):
+        """
+        """
+        current_hbox = self._get_format_hbox()
+        self.vbox.remove(current_hbox)
+
+        button_label = widget.get_label()
+        if button_label == self.audiovideo_radiobutton.get_label():
+            child = self._audiovideo_format_hbox
+            self.current_stream_type = AUDIO_VIDEO_STREAM
+        elif button_label == self.video_radiobutton.get_label():
+            child = self._video_format_hbox
+            self.current_stream_type = VIDEO_ONLY_STREAM
+        elif button_label == self.audio_radiobutton.get_label():
+            child = self._audio_format_hbox
+            self.current_stream_type = AUDIO_ONLY_STREAM
+
+        self.vbox.pack_start(child, False, False, 0)
+        self.vbox.reorder_child(child, -2)
+        self.vbox.show_all()
 
     def on_combobox_change(self, widget):
         raise NotImplementedError
@@ -631,11 +817,21 @@ class AudioMenu(AbstractMenu):
         mic_sources = Gtk.ComboBoxText()
         for source in self.pipeline.audio_sources:
             mic_sources.append_text(source.description)
-        mic_sources.connect("changed", self.on_combobox_change)
+        mic_sources.connect("changed", self.on_input_change)
         mic_sources.set_margin_left(24)
 
         mute_checkbutton = Gtk.CheckButton("Mute")
         mute_checkbutton.connect("toggled", self.on_mute_toggle)
+
+        output_sinks = Gtk.ComboBoxText()
+        index = 0
+        for description, device in self.pipeline.speaker_sinks.items():
+            output_sinks.append_text(description)
+            if device == self.pipeline.speaker_sink.get_property("device"):
+                output_sinks.set_active(index)
+            index += 1
+        output_sinks.connect("changed", self.on_output_change)
+        output_sinks.set_margin_left(24)
 
         self.audio_confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
@@ -649,6 +845,7 @@ class AudioMenu(AbstractMenu):
                       title,
                       mic_sources,
                       mute_checkbutton,
+                      output_sinks,
                       self.audio_confirm_button,
                       separator)
         return vbox
@@ -656,10 +853,15 @@ class AudioMenu(AbstractMenu):
     def on_audio_input_clicked(self, widget):
         self._manage_revealer(self.menu_revealer, self.audio_vbox)
 
-    def on_combobox_change(self, widget):
+    def on_input_change(self, widget):
         self.audio_confirm_button.set_sensitive(True)
         self.requested_audio_source = self.pipeline.get_source_by_description(
             widget.get_active_text())
+
+    def on_output_change(self, widget):
+        self.audio_confirm_button.set_sensitive(True)
+        #self.requested_audio_sink = self.pipeline.get_source_by_description(
+        #    widget.get_active_text())  # DEV
 
     def on_mute_toggle(self, widget):
         """
@@ -668,12 +870,13 @@ class AudioMenu(AbstractMenu):
         pass
 
     def on_confirm_clicked(self, widget):
-        if self.requested_audio_source == self.current_audio_source:
-            return
+        if self.requested_audio_source != self.current_audio_source:
+            self.pipeline.set_input_source(self.requested_audio_source)
+            self.current_audio_source = self.requested_audio_source
 
-        self.pipeline.set_input_source(self.requested_audio_source)        
-        self.current_audio_source = self.requested_audio_source
-        self.requested_audio_source = None
+        #if self.requested_audio_sink != self.current_audio_sink:  # DEV
+        #    self.pipeline.set_speaker_sink(self.requested_audio_sink)  # DEV
+        #    self.current_audio_sink = self.requested_audio_sink  # DEV
 
         self.audio_confirm_button.set_sensitive(False)
 
@@ -687,77 +890,17 @@ class StreamMenu(AbstractMenu):
     """
     def __init__(self, pipeline, menu_revealer):
         super().__init__(pipeline, menu_revealer)
-        self.stream_remote_widgets = []
-        self.stream_local_widgets = []
+        self.settings_revealer = self._build_revealer()
         self.stream_vbox = self._build_stream_vbox()
 
+        self.feed_streamed = []
+
     def _build_stream_vbox(self):
-        """
-        """
-        title = Gtk.Label("Streaming Server")
+        title = Gtk.Label("Streaming server")
         title.set_margin_top(6)
 
-        remote_radiobutton = Gtk.RadioButton("Remote (soon available)")
-        remote_radiobutton.set_active(True)
-        remote_radiobutton.connect("clicked", self.on_serverlocation_toggle)
-        remote_radiobutton.set_sensitive(False)  # DEV
-
-        ipv46_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        ipv46_hbox.set_margin_left(24)
-        ipv4_radiobutton = Gtk.RadioButton("v4")
-        ipv4_radiobutton.set_active(True)
-        ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
-        ipv6_radiobutton = Gtk.RadioButton("v6", group=ipv4_radiobutton)
-        ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
-        ipv4_radiobutton.set_sensitive(False)  # DEV
-        ipv6_radiobutton.set_sensitive(False)  # DEV
-        _pack_widgets(ipv46_hbox, ipv4_radiobutton, ipv6_radiobutton)
-
-        ipv4_entry = self._build_ipv4_entry()
-        ipv4_entry.set_margin_left(24)
-        ipv4_entry.set_sensitive(False)  # DEV
-
-        # TODO: Implement ipv6_entry
-        # ipv6_entry = self._build_ipv6_entry()
-        # ipv6_entry.set_margin_left(24)
-
-        self.stream_remote_widgets.extend(
-            (ipv4_radiobutton, ipv6_radiobutton, ipv4_entry))
-
-        local_radiobutton = Gtk.RadioButton(label="Local",
-                                            group=remote_radiobutton)
-        local_radiobutton.connect("toggled", self.on_serverlocation_toggle)
-        local_radiobutton.set_sensitive(False)  # DEV
-        localhost_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-        localhost_hbox.set_margin_left(24)
-
-        localhost_label = Gtk.Label("localhost : ")
-        port_entry = Gtk.Entry()
-        port_entry.set_max_length(5)
-        port_entry.set_width_chars(5)
-        port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
-        port_entry.set_sensitive(False)  # DEV
-        _pack_widgets(localhost_hbox, localhost_label, port_entry)
-
-        self.stream_local_widgets.extend((port_entry,))
-        self._make_widget_unavailable(*self.stream_local_widgets)
-
-        mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-        mountpoint_label = Gtk.Label("Mountpoint : ")
-        mountpoint_entrybox = Gtk.Entry()
-        mountpoint_entrybox.set_sensitive(False)  # DEV
-        _pack_widgets(mountpoint_hbox, mountpoint_label, mountpoint_entrybox)
-
-        password_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-        password_label = Gtk.Label("Password : ")
-        password_entrybox = Gtk.Entry()
-        password_entrybox.set_input_purpose(Gtk.InputPurpose.PASSWORD)
-        password_entrybox.set_visibility(False)
-        password_entrybox.set_sensitive(False)  # DEV
-        _pack_widgets(password_hbox, password_label, password_entrybox)
-
-        self.stream_confirm_button = self._build_confirm_changes_button(
-            callback=None)
+        self.stream_add_button = self._build_add_button(
+            callback=self.on_add_clicked)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         separator.set_margin_top(6)
@@ -766,28 +909,204 @@ class StreamMenu(AbstractMenu):
         vbox.set_margin_right(6)
         _pack_widgets(vbox,
                       title,
-                      remote_radiobutton,
-                      ipv46_hbox,
-                      ipv4_entry,
-                      local_radiobutton,
-                      localhost_hbox,
-                      mountpoint_hbox,
-                      password_hbox,
-                      self.stream_confirm_button,
-                      separator)
+                      self.settings_revealer,
+                      separator,
+                      self.stream_add_button)
         return vbox
 
     def on_stream_clicked(self, widget):
         self._manage_revealer(self.menu_revealer, self.stream_vbox)
 
-    def on_serverlocation_toggle(self, widget):
-        is_active = widget.get_active()
-        if widget.get_label() == "Remote" and is_active:
-            self._make_widget_available(*self.stream_remote_widgets)
-            self._make_widget_unavailable(*self.stream_local_widgets)
-        elif widget.get_label() == "Local" and is_active:
-            self._make_widget_available(*self.stream_local_widgets)
-            self._make_widget_unavailable(*self.stream_remote_widgets)
+    def on_add_clicked(self, widget):
+        stream_element = self.StreamSection(
+            self.pipeline, self.settings_revealer,
+            self.stream_vbox, len(self.feed_streamed) + 1)
+        self.feed_streamed.append(stream_element)
+        self._manage_revealer(self.settings_revealer, stream_element.vbox)
+
+    class StreamSection(AbstractMenu):
+        def __init__(self, pipeline, settings_revealer, parent_container, index):
+            super().__init__(pipeline, None)
+            self._parent_container = parent_container
+            self._settings_revealer = settings_revealer
+            self._revealer = self._build_revealer()
+            self._index = index
+
+            self.remote_server_radiobutton = None
+            self.local_server_radiobutton = None
+            self.server_address_entries = None
+            self.port = None
+            self.mountpoint = None
+            self.password = None
+
+            self.current_stream_type = None
+
+            self.audiovideo_radiobutton = None
+            self.video_radiobutton = None
+            self.audio_radiobutton = None
+            self.radiobuttons_hbox = None
+
+            self._audiovideo_format_combobox = None
+            self._video_format_combobox = None
+            self._audio_format_combobox = None
+            self._audiovideo_format_hbox = None
+            self._video_format_hbox = None
+            self._audio_format_hbox = None
+            self.store_confirm_button = None
+
+            self.stream_remote_widgets = []
+            self.stream_local_widgets = []
+
+            self.vbox = self._build_newstream_vbox()
+            self.summary_vbox = None
+
+            self.streamsink = None
+
+        def _build_newstream_vbox(self):
+            """
+            """
+            self.remote_server_radiobutton = Gtk.RadioButton("Remote")
+            self.remote_server_radiobutton.set_active(True)
+            self.remote_server_radiobutton.connect(
+                "clicked", self.on_remote_server_toggle)
+
+            self.local_server_radiobutton = Gtk.RadioButton(
+                label="Local (soon)", group=self.remote_server_radiobutton)
+            self.local_server_radiobutton.connect(
+                "clicked", self.on_local_server_toggle)
+            self.local_server_radiobutton.set_sensitive(False)  # DEV
+
+            server_type_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+            _pack_widgets(server_type_hbox,
+                          self.remote_server_radiobutton,
+                          self.local_server_radiobutton)
+
+            ipv46_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            ipv46_hbox.set_margin_left(24)
+            ipv4_radiobutton = Gtk.RadioButton("v4")
+            ipv4_radiobutton.set_active(True)
+            ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
+            ipv6_radiobutton = Gtk.RadioButton("v6 (soon)", group=ipv4_radiobutton)
+            ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
+            ipv6_radiobutton.set_sensitive(False)  # DEV
+            _pack_widgets(ipv46_hbox, ipv4_radiobutton, ipv6_radiobutton)
+
+            ipv4_entry = self._build_ipv4_entry()
+            ipv4_entry.set_margin_left(24)
+
+            # TODO: Implement ipv6_entry
+            # ipv6_entry = self._build_ipv6_entry()
+            # ipv6_entry.set_margin_left(24)
+
+            self.stream_remote_widgets.extend(
+                (ipv4_radiobutton, ipv6_radiobutton, ipv4_entry))
+
+            #localhost_label = Gtk.Label("localhost : ")
+            #port_entry = Gtk.Entry()
+            #port_entry.set_max_length(5)
+            #port_entry.set_width_chars(5)
+            #port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
+            #port_entry.set_sensitive(False)  # DEV
+            #localhost_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+            #localhost_hbox.set_margin_left(24)
+            #_pack_widgets(localhost_hbox, localhost_label, self.port_entry)
+
+            #self.stream_local_widgets.extend((self.port_entry,))  # DEBUG
+            #self._make_widget_unavailable(*self.stream_local_widgets)  # DEBUG
+
+            mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+            mountpoint_label = Gtk.Label("Mountpoint : ")
+            mountpoint_entry = Gtk.Entry()
+            mountpoint_entry.connect("changed", self.on_mountpoint_change)
+            _pack_widgets(mountpoint_hbox, mountpoint_label, mountpoint_entry)
+
+            password_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+            password_label = Gtk.Label("Password :   ")
+            password_entry = Gtk.Entry()
+            password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+            password_entry.set_visibility(False)
+            password_entry.connect("changed", self.on_password_change)
+            _pack_widgets(password_hbox, password_label, password_entry)
+
+            radiobutton_hbox = self._build_format_group()
+
+            self.stream_confirm_button = self._build_confirm_changes_button(
+                callback=None)
+            # Label only used at initialization
+            self.stream_confirm_button.set_label("Create")
+
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            vbox.set_margin_right(6)
+            _pack_widgets(vbox,
+                          server_type_hbox,
+                          ipv46_hbox,
+                          ipv4_entry,
+                          mountpoint_hbox,
+                          password_hbox,
+                          radiobutton_hbox,
+                          self._audiovideo_format_hbox,
+                          self.stream_confirm_button,)
+            return vbox
+
+        def on_remote_server_toggle(self, widget):
+            if widget.get_active():
+                # TODO: hide widgets related to local_server and then show
+                # remote_server related ones.
+                pass
+
+        def on_local_server_toggle(self, widget):
+            if widget.get_active():
+                # TODO: hide widgets related to remote_server and then show
+                # local_server related ones.
+                pass
+
+        def on_mountpoint_change(self, widget):
+            self.get_ipv4_address()  # DEBUG
+            text = widget.get_text()
+            if text != self.mountpoint:
+                self.mountpoint = text
+                if self.server_address_entries and self.port_entry:
+                    self.stream_confirm_button.set_sensitive(True)
+
+        def on_password_change(self, widget):
+            text = widget.get_text()
+            if text != self.password:
+                self.password = text
+
+        def on_format_radiobutton_toggle(self, widget):
+            self._change_output_format(widget)
+            self.vbox.reorder_child(self.stream_confirm_button, -1)
+
+            if (self.server_address_entries
+                    and self.port_entry
+                    and self.mountpoint_entry):
+                self.stream_confirm_button.set_sensitive(True)
+
+        def on_confirm_clicked(self, widget):
+            element_name = self.mountpoint.split("/")[-1]
+            if not self.streamsink:
+                self.streamsink = self.pipeline.create_stream_sink(
+                    self.current_stream_type, self.ip_address, self.port,
+                    self.mountpoint, self.password, element_name)
+            else:
+                # It's a property update
+                pass
+
+            if not self.summary_vbox:
+                self.summary_vbox = self._build_summary_box(self.mountpoint)
+                self._parent_container.pack_start(
+                    self.summary_vbox, False, False, 0)
+                self._parent_container.reorder_child(
+                    self.summary_vbox, self._index)
+
+                self._settings_revealer.remove(self.vbox)
+                self._parent_container.show_all()
+
+            self.store_confirm_button.set_label("Confirm")
+            self.store_confirm_button.set_sensitive(False)
+
+        def on_settings_clicked(self, widget):
+            self._manage_revealer(self._revealer, self.vbox)
 
 
 class StoreMenu(AbstractMenu):
@@ -798,9 +1117,7 @@ class StoreMenu(AbstractMenu):
         self.settings_revealer = self._build_revealer()
         self.store_vbox = self._build_store_vbox()
 
-        self.file_stored = []  # used to keep track of each StoreSetion instanciated
-        #self.store_element = self.StoreSection(
-        #    self.pipeline, self.settings_revealer, self.store_vbox)  # DEBUG
+        self.file_stored = []
 
     def _build_store_vbox(self):
         title = Gtk.Label("Storing")
@@ -862,34 +1179,6 @@ class StoreMenu(AbstractMenu):
 
             self.filesink = None
 
-        def _build_store_section(self, radio_button_label, format_labels,
-                                 callback_radio=None, callback_combo=None,
-                                 radio_group=None):
-            """
-            """
-            radio_button = Gtk.RadioButton(
-                radio_button_label, group=radio_group)
-            if callback_radio:
-                radio_button.connect("toggled", callback_radio)
-
-            text_label = Gtk.Label("Format : ")
-            combo_box = Gtk.ComboBoxText()
-            for label in format_labels:
-                combo_box.append_text(label)
-                combo_box.set_active(0)
-            # This version accept only one format for each stream type.
-            # There is not point to allow user to use this combo box.
-            # That way the format is displayed as information.
-            combo_box.set_sensitive(False)
-            if callback_combo:
-                combo_box.connect("changed", callback_combo)
-
-            hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            hbox.set_margin_left(24)
-            _pack_widgets(hbox, text_label, combo_box)
-
-            return (radio_button, hbox, combo_box)
-
         def _build_newfile_vbox(self):
             """
             """
@@ -909,34 +1198,7 @@ class StoreMenu(AbstractMenu):
             name_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             _pack_widgets(name_hbox, name_label, name_entry)
 
-            (self.audiovideo_radiobutton,
-             self._audiovideo_format_hbox,
-             self._audiovideo_format_combobox) = self._build_store_section(
-                "Audio/Video", (".webm",),
-                 callback_radio=self.on_radiobutton_toggle)
-            self.audiovideo_radiobutton.set_active(True)
-
-            self.current_stream_type = AUDIO_VIDEO_STREAM
-
-            (self.video_radiobutton,
-             self._video_format_hbox,
-             self._video_format_combobox) = self._build_store_section(
-                "Video Only", (".mkv",),
-                callback_radio=self.on_radiobutton_toggle,
-                radio_group=self.audiovideo_radiobutton)
-
-            (self.audio_radiobutton,
-             self._audio_format_hbox,
-             self._audio_format_combobox) = self._build_store_section(
-                "Audio Only", (".ogg",),
-                callback_radio=self.on_radiobutton_toggle,
-                radio_group=self.audiovideo_radiobutton)
-
-            radiobutton_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            _pack_widgets(radiobutton_hbox,
-                          self.audiovideo_radiobutton,
-                          self.video_radiobutton,
-                          self.audio_radiobutton)
+            radiobutton_hbox = self._build_format_group()
 
             self.store_confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
@@ -944,7 +1206,6 @@ class StoreMenu(AbstractMenu):
             self.store_confirm_button.set_label("Create")
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            vbox.set_margin_right(6)
             _pack_widgets(vbox,
                           folder_chooser_button,
                           name_hbox,
@@ -952,58 +1213,6 @@ class StoreMenu(AbstractMenu):
                           self._audiovideo_format_hbox,
                           self.store_confirm_button)
             return vbox
-
-        def _build_summary_box(self, filename):
-            """
-            Build a container that sums up information about a store sink.
-
-            :param filename: filename of stored stream as :class:`str`
-
-            :return: :class:`Gtk.Box`
-            """
-            self.full_filename_label = Gtk.Label(filename)
-            settings_button = Gtk.Button(stock=Gtk.STOCK_PROPERTIES)
-            settings_button.connect("clicked", self.on_settings_clicked)
-
-            summary_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            summary_hbox.set_margin_top(6)
-            _pack_widgets(summary_hbox,
-                          self.full_filename_label, settings_button)
-
-            separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-            separator.set_margin_top(6)
-
-            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            _pack_widgets(vbox,
-                          summary_hbox,
-                          self._revealer,
-                          separator)
-            return vbox
-
-        def _get_format_hbox(self):
-            """
-            Get format horizontal box currently displayed.
-
-            :return: :class:`Gtk.Box`
-            """
-            for format_hbox in (self._audiovideo_format_hbox,
-                                self._video_format_hbox,
-                                self._audio_format_hbox):
-                if format_hbox.get_parent():
-                    return format_hbox
-
-        def _get_format_extension(self):
-            """
-            Get format extension from the combo box currently displayed.
-
-            :return: a dotted extension as :class:`str`
-            """
-            hbox = self._get_format_hbox()
-            for combobox in (self._audiovideo_format_combobox,
-                             self._video_format_combobox,
-                             self._audio_format_combobox):
-                if combobox.get_parent() == hbox:
-                    return combobox.get_active_text()
 
         def on_folder_selected(self, widget):
             self.folder_selection = widget.get_filename()
@@ -1014,28 +1223,12 @@ class StoreMenu(AbstractMenu):
             text = widget.get_text()
             if text != self.filename:
                 self.filename = text
+                if self.folder_selection:
+                    self.store_confirm_button.set_sensitive(True)
 
-            if self.folder_selection:
-                self.store_confirm_button.set_sensitive(True)
-
-        def on_radiobutton_toggle(self, widget):
-            current_hbox = self._get_format_hbox()
-            self.vbox.remove(current_hbox)
-
-            button_label = widget.get_label()
-            if button_label == self.audiovideo_radiobutton.get_label():
-                child = self._audiovideo_format_hbox
-                self.current_stream_type = AUDIO_VIDEO_STREAM
-            elif button_label == self.video_radiobutton.get_label():
-                child = self._video_format_hbox
-                self.current_stream_type = VIDEO_ONLY_STREAM
-            elif button_label == self.audio_radiobutton.get_label():
-                child = self._audio_format_hbox
-                self.current_stream_type = AUDIO_ONLY_STREAM
-
-            self.vbox.pack_start(child, False, False, 0)
-            self.vbox.reorder_child(child, 3)
-            self.vbox.show_all()
+        def on_format_radiobutton_toggle(self, widget):
+            self._change_output_format(widget)
+            self.vbox.reorder_child(self.store_confirm_button, -1)
 
             if self.folder_selection and self.filename:
                 self.store_confirm_button.set_sensitive(True)
@@ -1053,13 +1246,12 @@ class StoreMenu(AbstractMenu):
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(full_filename)
-                self._parent_container.pack_start(self.summary_vbox, False, False, 0)
+                self._parent_container.pack_start(
+                    self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
                     self.summary_vbox, self._index)
 
                 self._settings_revealer.remove(self.vbox)
-                #self._manage_revealer(self._revealer, self.vbox)
-
                 self._parent_container.show_all()
 
             self.store_confirm_button.set_label("Confirm")
