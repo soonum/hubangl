@@ -55,19 +55,13 @@ class MainWindow:
         self.window = Gtk.Window()
         self.window.set_title("HUBAngl")
         self.window.connect("delete_event", lambda w, e: Gtk.main_quit())
-        self.window.set_size_request(400, 300)
         self.window.set_position(Gtk.WindowPosition.CENTER)
 
         if default_app:
             self.current_app = default_app
         else:
-            #self.current_app = StandaloneApp()  # DEBUG
-            #self.current_app = BaseApp(self.window)  # DEBUG
             self.current_app = BaseApp(self.window, "standalone")
-            #self.current_app = BaseApp(self.window, "monitoring")
             self.current_app_container = self.current_app.container
-            #self.current_app = ControlRoomApp()  # DEBUG
-            #self.current_app_container = self.current_app.grid  # DEBUG
 
         self.menu_bar = Gtk.MenuBar()
         self.menu_item_new = self._build_menu_new(self.menu_bar)
@@ -78,9 +72,9 @@ class MainWindow:
         self.menu_item_help = self._build_menu_help(self.menu_bar)
 
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        _pack_widgets(self.main_vbox,
-                      self.menu_bar,
-                      self.current_app_container)
+        self.main_vbox.pack_start(self.menu_bar, False, False, 0)
+        self.main_vbox.pack_end(self.current_app_container, True, True, 0)
+
         self.window.add(self.main_vbox)
         self.window.show_all()
 
@@ -195,21 +189,24 @@ class MainWindow:
             on_signal="activate",
             callback=self.on_standalone_mode
         )
-        current_view_mode = self.subradioitem_standalone
         self.subradioitem_controlroom = self._build_radiomenuitem(
-            "Control Room",
+            "Control Room (soon)",
             self.dropmenu_mode,
             group=self.subradioitem_standalone,
             on_signal="activate",
             callback=self.on_controlroom_mode
         )
         self.subradioitem_monitoring = self._build_radiomenuitem(
-            "Monitoring",
+            "Monitoring (soon)",
             self.dropmenu_mode,
             group=self.subradioitem_standalone,
             on_signal="activate",
             callback=self.on_monitoring_mode
         )
+
+        current_view_mode = self.subradioitem_standalone
+        self.subradioitem_controlroom.set_sensitive(False)  # DEV
+        self.subradioitem_monitoring.set_sensitive(False)  # DEV
 
         return menu_item, current_view_mode
 
@@ -221,7 +218,7 @@ class MainWindow:
         # TODO:
         # Implement About dialogbox
         # Implement documentation
-        # Implement tutorial ?
+        # Implement possible tutorial
 
         return menu_item
 

@@ -37,7 +37,7 @@ from backend.exceptions import (GstElementInitError,
 CUR_ELEM = None  # DEBUG
 NEW_ELEM = None  # DEBUG
 CUR_BIN = None  # DEBUG
-DEFAULT_IMAGE = "/home/el_diivaad/Documents/Coding/Python/hubangl/images/lp2016_test.jpg"
+DEFAULT_IMAGE = None
 # TODO: use pathlib module to load default image
 # DEFAULT_IMAGE = pathlib --> hubangl/images/logo.png
 DEFAULT_IP = "127.0.0.1"
@@ -144,6 +144,9 @@ class Pipeline:
 
         self.audio_sources = self.create_audio_sources()
         self.video_sources = self.create_video_sources()
+        self.speaker_sinks = self.get_speaker_sinks()
+        #: GstElement used in the pipeline
+        self.speaker_sink = None
 
         (self.audio_process_source,
          self.audio_process_branch1,
@@ -311,6 +314,38 @@ class Pipeline:
         self.image_overlay.set_property("location", filepath)
         self.image_overlay.set_property("offset-x", offset_x)
         self.image_overlay.set_property("offset-y", offset_y)
+
+    def get_speaker_sinks(self):
+        """
+        Get audio sinks device names.
+
+        :return: :class:`dict` {description: device_name}
+        """
+        audio_sinks = {}
+        audio_devices = iofetch.find_audio()
+        for device in audio_devices:
+            if audio_devices[device][iofetch.TYPE] == iofetch.TYPE_IN:
+                continue
+            if "Monitor" in audio_devices[device][iofetch.DESCRIP]:
+                continue
+            audio_sinks[audio_devices[device][iofetch.DESCRIP]] = device
+
+        return audio_sinks
+
+    def set_speaker_sink(self, device_name):
+        """
+        Change the device used for the speaker sink GstElement.
+        """
+        self.speaker_sink.set_property("device", device_name)
+
+    def set_default_speaker_sink(self):
+        """
+        Set the speaker sink GstElement device to built-in speakers.
+        """
+        for key, value in self.speaker_sinks.items():
+            if "Built-in Audio" in key:
+                self.set_speaker_sink(value)
+                return
 
     def update_gstelement(self, gstelement, update_type, update_value):
         assert self.is_standingby()
@@ -901,14 +936,14 @@ class Pipeline:
         ogg_muxer = GstElement("oggmux", "ogg_muxer", tee_input=True)
         ogg_muxer.set_related_tee(tee_output_audio)
         # Sink:
-        speaker_sink = GstElement("pulsesink", "speaker_sink")
-        speaker_sink.set_property("device", "alsa_output.pci-0000_00_1b.0.analog-stereo")  # DEBUG
-        speaker_sink.set_property("sync", False)
+        self.speaker_sink = GstElement("pulsesink", "speaker_sink")
+        self.set_default_speaker_sink()
+        self.speaker_sink.set_property("sync", False)
 
         file_sink = GstElement("filesink", "filesink_debug")  # DEBUG
         file_sink.set_property("location", "/tmp/audio_test.ogg")  # DEBUG
         file_sink.set_property("sync", False)  # DEBUG
-        fakesink = GstElement("fakesink", "fakesink_debug_audio")
+        fakesink = GstElement("fakesink", "fakesink_debug_audio")  # DEBUG
 
         source_branch = (source_volume, audiolevel, tee_audio_source)
         output_branch_encoding = (vorbis_encoder, tee_audio_process)
@@ -916,7 +951,7 @@ class Pipeline:
         output_branch_storing = (queue_audio_filesink, fakesink)  # DEBUG
         output_branch_streaming = (queue_audio_streamsink,)
         output_branch_loudspeakers = (
-            queue_speakersink, self.speaker_volume, speaker_sink)
+            queue_speakersink, self.speaker_volume, self.speaker_sink)
 
         return (source_branch,
                 output_branch_encoding,

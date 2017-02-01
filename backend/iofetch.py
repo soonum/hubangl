@@ -271,6 +271,20 @@ def get_audio_source_name():
     return audio_sources
 
 
+def get_audio_sinks_name():
+    """
+    """
+    audio_sinks = []
+    audio_devices = find_audio()
+    for device in audio_devices:
+        if audio_devices[device][TYPE] == TYPE_IN:
+            continue
+        #if "HDMI" in audio_devices[device][DESCRIP]:  # DEV
+        #    continue  # DEV
+        audio_sinks.append(audio_devices[device][DESCRIP])
+    return audio_sinks
+
+
 def get_usb_video_source_name():
     """
     """
