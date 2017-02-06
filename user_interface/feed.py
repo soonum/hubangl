@@ -300,15 +300,12 @@ class ControlBar:
         """
         toolbar = Gtk.Toolbar()
 
-        #play_icon = Gtk.Image()  # DEBUG
-        #play_icon.set_from_file("/home/el_diivaad/Documents/Coding/Python/hubangl/images/Play_PNG_Icone_24-24_px.png")  # DEBUG
         self.play_button = self._build_toolbutton(
             "Play",
             icon=Gtk.STOCK_MEDIA_PLAY,  # DEBUG
             on_signal="clicked",
             callback=self.on_play_clicked
         )
-        #self.play_button.set_icon_widget(play_icon)  # DEBUG
         self.stop_button = self._build_toolbutton(
             "Stop",
             icon=Gtk.STOCK_MEDIA_STOP,
@@ -325,15 +322,12 @@ class ControlBar:
             on_signal="clicked",
             callback=self.audio_menu.on_audio_input_clicked
         )
-        #stream_icon = Gtk.Image()  # DEBUG
-        #stream_icon.set_from_file("/home/el_diivaad/Documents/Coding/Python/hubangl/images/Streaming_PNG_Icone_24-24_px.png")  # DEBUG
         self.stream_button = self._build_toolbutton(
             "Stream",
             icon=Gtk.STOCK_NETWORK,  # DEBUG
             on_signal="clicked",
             callback=self.stream_menu.on_stream_clicked
         )
-        #self.stream_button.set_icon_widget(stream_icon)  # DEBUG
         self.store_button = self._build_toolbutton(
             "Store",
             icon=Gtk.STOCK_HARDDISK,
@@ -708,8 +702,11 @@ class VideoMenu(AbstractMenu):
         usb_radiobutton.set_active(True)
         usb_radiobutton.connect("toggled", self.on_commtype_toggle)
         usb_sources = Gtk.ComboBoxText()
-        for source in self.pipeline.video_sources:
-            usb_sources.append_text(source.description)
+        if not self.pipeline.video_sources:
+            usb_sources.append_text("")
+        else:
+            for source in self.pipeline.video_sources:
+                usb_sources.append_text(source.description)
         usb_sources.connect("changed", self.on_combobox_change)
         usb_sources.set_margin_left(24)
         self.video_usb_widgets.append(usb_sources)
@@ -773,10 +770,11 @@ class VideoMenu(AbstractMenu):
             self._make_widget_unavailable(*self.video_usb_widgets)
 
     def on_combobox_change(self, widget):
-        self.video_confirm_button.set_sensitive(True)
-        self.requested_video_source = self.pipeline.get_source_by_description(
-            widget.get_active_text())
-        print(self.requested_video_source)  # DEBUG
+        active_text = widget.get_active_text()
+        if active_text:
+            self.video_confirm_button.set_sensitive(True)
+            self.requested_video_source = self.pipeline.get_source_by_description(
+                active_text)
 
     def on_ipv46_toggle(self, widget):
         raise NotImplementedError

@@ -350,45 +350,10 @@ class BaseApp:
         self.container = self.feed.hbox
 
     def make_app(self):  # DEBUG
-        # DEBUG SECTION______________________________________________
-        # We need to show the widgets before trying to attach video
-        # feed to the main window
-
-        # Microphone init
-        audio_devices = iofetch.find_audio()
-        for key in audio_devices:
-            # Get the built-in microphone
-            if audio_devices[key]["type"] == "input" and "hdmi" not in key:
-                a_device = key
-                break
-        microphone = ioelements.AudioInput("Empty description", a_device)
-#        self.feed.pipeline.set_input_source(microphone)
-
-        # Camera init
-        usbcam_devices = iofetch.find_usbcam()
-        #if len(usbcam_devices) > 1:
-        for key in usbcam_devices:
-            # Try not to get built-in usb cam
-            if usbcam_devices[key]["description"] != "TOSHIBA Web Camera":
-                v_device = key
-                break
-        else:
-            # Built-in camera
-            v_device = key
-
-        usbcam = ioelements.VideoInput("Empty description",
-                                       "usb",
-                                       v_device,)
-        #self.feed.pipeline.set_input_source(usbcam)
-
         # Get Window ID
         self.feed.set_xid()
         # Set placeholder pipeline in play mode
         self.feed.placeholder_pipeline.set_play_state()
-        # Pipeline in play mode
-        #self.feed.pipeline.set_play_state()  # DEBUG
-
-        # SECTION END________________________________________________
 
     def _display_confirmation_message(self, new_mode, app):
         """
