@@ -131,22 +131,27 @@ def find_usbcam():
     video_dev = {}
 
     # Using /dev/videoX name
-    dev_list = [DEVICE_RAW_PATH + dev for dev in listdir(DEVICE_RAW_PATH)
-                if CLASS_VIDEO in dev]
-    dev_infopath = [VIDEO_DEVICE_PATH + dev for dev in listdir(VIDEO_DEVICE_PATH)]
-    for dev in dev_infopath:
-        dev_namepath = path.realpath(dev) + r'/name'
-        with open(dev_namepath, 'r') as f:
-            dev_name = f.readline().rstrip()
-        for i in dev_list:
-            splitted = i.split('/')
-            if splitted[-1] in dev:
-                video_dev.update({i: {DESCRIP: dev_name,
-                                      CLASS: CLASS_VIDEO,
-                                      COMM: COMM_USB,
-                                      TYPE: TYPE_IN,
-                                      GSTELEM: GSTINIT}})
-    return video_dev
+    try:
+        dev_list = [DEVICE_RAW_PATH + dev for dev in listdir(DEVICE_RAW_PATH)
+                    if CLASS_VIDEO in dev]
+        dev_infopath = [VIDEO_DEVICE_PATH + dev for dev in listdir(VIDEO_DEVICE_PATH)]
+    except FileNotFoundError:
+        # No camera is available or plugged
+        return None
+    else:
+        for dev in dev_infopath:
+            dev_namepath = path.realpath(dev) + r'/name'
+            with open(dev_namepath, 'r') as f:
+                dev_name = f.readline().rstrip()
+            for i in dev_list:
+                splitted = i.split('/')
+                if splitted[-1] in dev:
+                    video_dev.update({i: {DESCRIP: dev_name,
+                                          CLASS: CLASS_VIDEO,
+                                          COMM: COMM_USB,
+                                          TYPE: TYPE_IN,
+                                          GSTELEM: GSTINIT}})
+        return video_dev
 
 
 def scan_subnet(ip_range):

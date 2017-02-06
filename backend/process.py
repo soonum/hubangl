@@ -839,6 +839,10 @@ class Pipeline:
         """
         video_sources = []
         video_devices = iofetch.find_usbcam()
+
+        if not video_devices:
+            return None
+
         for device in video_devices:
             _gstelement = ioelements.VideoInput(
                 video_devices[device][iofetch.DESCRIP],
