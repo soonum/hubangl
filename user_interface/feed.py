@@ -31,6 +31,7 @@ from gi.repository import GstVideo
 from gi.repository import GObject
 
 sys.path.insert(0, "..")  # NOQA # TODO: use __init__.py for managing backend package
+import images
 from backend import process
 from backend import iofetch
 
@@ -234,6 +235,9 @@ class ControlBar:
     def __init__(self, pipeline, menu_revealer,
                  video_menu, audio_menu, stream_menu, store_menu, info_menu,
                  placeholder_pipeline=None):
+        self.images = images.HubanglImages()
+        self.images.load_icons()
+
         self._pipeline = pipeline
         self._placeholder_pipeline = placeholder_pipeline
         self._menu_revealer = menu_revealer
@@ -282,14 +286,15 @@ class ControlBar:
         self.audiolevel_icon = Gtk.Image()
         self.audiolevel_icon.set_from_file("")
 
-    def _build_toolbutton(self, name, icon=None,
+    def _build_toolbutton(self, name, icon,
                           on_signal=None, callback=None, tooltip_text=None):
-        toolbutton = Gtk.ToolButton(icon, name)
+        toolbutton = Gtk.ToolButton(name)
         # FIXME: Tooltip text does not appear on the screen
         if not tooltip_text:
             toolbutton.set_tooltip_text(name)
         else:
             toolbutton.set_tooltip_text(tooltip_text)
+        toolbutton.set_icon_widget(icon)
 
         if on_signal and callback:
             toolbutton.connect(on_signal, callback)
@@ -302,41 +307,43 @@ class ControlBar:
 
         self.play_button = self._build_toolbutton(
             "Play",
-            icon=Gtk.STOCK_MEDIA_PLAY,  # DEBUG
+            self.images.icons["play"]["regular"],
             on_signal="clicked",
             callback=self.on_play_clicked
         )
         self.stop_button = self._build_toolbutton(
             "Stop",
-            icon=Gtk.STOCK_MEDIA_STOP,
+            self.images.icons["stop"]["regular"],
             on_signal="clicked",
             callback=self.on_stop_clicked
         )
         self.video_button = self._build_toolbutton(
             "VIDEO",
+            self.images.icons["camera"]["regular"],
             on_signal="clicked",
             callback=self.video_menu.on_video_input_clicked,
         )
         self.audio_button = self._build_toolbutton(
             "Audio",
+            self.images.icons["micro"]["regular"],
             on_signal="clicked",
             callback=self.audio_menu.on_audio_input_clicked
         )
         self.stream_button = self._build_toolbutton(
             "Stream",
-            icon=Gtk.STOCK_NETWORK,  # DEBUG
+            self.images.icons["streaming"]["regular"],
             on_signal="clicked",
             callback=self.stream_menu.on_stream_clicked
         )
         self.store_button = self._build_toolbutton(
             "Store",
-            icon=Gtk.STOCK_HARDDISK,
+            self.images.icons["storage"]["regular"],
             on_signal="clicked",
             callback=self.store_menu.on_store_clicked
         )
         self.info_button = self._build_toolbutton(
             "Info",
-            icon=Gtk.STOCK_INFO,
+            self.images.icons["info"]["regular"],
             on_signal="clicked",
             callback=self.info_menu.on_info_clicked
         )
@@ -793,6 +800,7 @@ class VideoMenu(AbstractMenu):
             self.placeholder_pipeline.set_stop_state()
             self.pipeline.set_preview_state("audio")
         elif self.pipeline.get_current_text() == "No video source":
+            # An audio source is already set
             self.pipeline.set_text_overlay("PREVIEW", "left", "top")
 
 
