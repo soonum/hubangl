@@ -66,7 +66,7 @@ class GstElement:
             pass
             # TODO:
             # Put here the case when an element is both input AND output of a tee
-           #
+            #
         if self.element_kind == "tee":
             self.connected = False
             self.endpoint_tee = endpoint_tee

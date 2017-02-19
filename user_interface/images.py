@@ -27,28 +27,40 @@ class HubanglImages:
     def __init__(self):
         self.artwork_path = self.get_artwork_path()
         self.icons = {"play": {"regular": None,
-                               "activated": None},
-                      "pause": {"regular": None,
+                               "regular_16px": None,
                                "activated": None},
                       "stop": {"regular": None,
+                               "regular_16px": None,
                                "activated": None},
                       "camera": {"regular": None,
-                                 "activated": None},
+                                 "regular_16px": None,
+                                 "activated": None,
+                                 "striked": None},
                       "micro": {"regular": None,
-                              "activated": None},
+                                "regular_16px": None,
+                                "activated": None,
+                                "striked": None},
                       "streaming": {"regular": None,
+                                    "regular_16px": None,
                                     "activated": None},
                       "storage": {"regular": None,
+                                  "regular_16px": None,
                                   "activated": None},
-                      "info": {"regular": None,
-                               "activated": None},
+                      "settings": {"regular": None,
+                                   "regular_16px": None,
+                                   "activated": None},
                       "speaker": {"regular": None,
-                                  "activated": None},
+                                  "activated": None,
+                                  "striked": None},
                       "chat": {"regular": None,
+                               "regular_16px": None,
                                "activated": None},
                       "slides": {"regular": None,
+                                 "regular_16px": None,
                                  "activated": None},
         }
+        self.load_icons()
+        self.load_logos()
 
     def get_artwork_path(self):
         root = pathlib.Path(__file__).parents[1]
@@ -67,8 +79,13 @@ class HubanglImages:
                 if key in filename:
                     icon = Gtk.Image()
                     icon.set_from_file(icon_path.as_posix())
-                    if "_or_" in filename:  # TODO: use better filename for activated version
+                    if ("_activated_" in filename
+                            and "_striked_" not in filename):
                         self.icons[key]["activated"] = icon
+                    elif "_striked_" in filename:
+                        self.icons[key]["striked"] = icon
+                    elif "_16-16_" in filename:
+                        self.icons[key]["regular_16px"] = icon
                     else:
                         self.icons[key]["regular"] = icon
 
@@ -76,9 +93,19 @@ class HubanglImages:
         """
         Load logos used as images and as favicon.
         """
-        self.logo_512_px = None
-        self.logo_256_px = None
-        self.logo_favicon = None
+        for logo_path in self.artwork_path.iterdir():
+            filename = logo_path.name.lower()
+            if "_logo_" in filename and "_512-512_" in filename:
+                self.logo_512_px = Gtk.Image()
+                self.logo_512_px.set_from_file(logo_path.as_posix())
+            elif "_logo_" in filename and "_256-256_" in filename:
+                self.logo_256_px = Gtk.Image()
+                self.logo_256_px_path = logo_path.as_posix()
+                self.logo_256_px.set_from_file(self.logo_256_px_path)
+            elif "_logo_" in filename and "_16-16_" in filename:
+                self.logo_favicon = Gtk.Image()
+                self.logo_favicon_path = logo_path.as_posix()
+                self.logo_favicon.set_from_file(self.logo_favicon_path)
 
     def get_activated_icon(self, icon_id):
         """
@@ -124,8 +151,3 @@ class HubanglImages:
             return icon_values["activated"]
         elif current_icon is icon_values["activated"]:
             return icon_values["regular"]
-
-    def _create_image(self):
-        """
-        Create
-        """
