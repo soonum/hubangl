@@ -166,8 +166,7 @@ class StreamElement(OutputElement):
 
     def create_gstelement(self, ip, port, mount, password, **kwargs):
         """
-        Create GStreamer streaming sink.
-        It streams over an IceCast server.
+        Create GStreamer streaming sink. It streams over an IceCast server.
         """
         if not (ip or port or mount):
             raise StreamInfoIncomplete

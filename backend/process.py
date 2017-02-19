@@ -19,6 +19,8 @@
 #
 # Copyright (c) 2016 David Testé
 
+import pathlib
+
 from gi.repository import Gst
 
 from backend import iofetch
@@ -37,9 +39,9 @@ from backend.exceptions import (GstElementInitError,
 CUR_ELEM = None  # DEBUG
 NEW_ELEM = None  # DEBUG
 CUR_BIN = None  # DEBUG
-DEFAULT_IMAGE = None
-# TODO: use pathlib module to load default image
-# DEFAULT_IMAGE = pathlib --> hubangl/images/logo.png
+DEFAULT_IMAGE = (pathlib.Path(__file__).resolve().parents[1]
+                 / "artwork"
+                 / "HUBAngl_logo_PNG_256-256_px.png")
 DEFAULT_IP = "127.0.0.1"
 DEFAULT_MOUNT = "eggs"
 DEFAULT_PATH = "/tmp/spam"
@@ -89,15 +91,16 @@ class PlaceholderPipeline:
             "textoverlay", "text_overlay_placeholder")
         message = "Choose audio and/or video sources"
         self.text_overlay.set_property("text", message)
-        self.text_overlay.set_property("valignment", "center")
+        self.text_overlay.set_property("valignment", "position")
+        self.text_overlay.set_property("ypos", 0.7)
         self.text_overlay.set_property("halignment", "center")
         self.text_overlay.set_property("font-desc", "Sans, 24")  # TODO: Find a right font and font-size
 
         self.image_overlay = Gst.ElementFactory.make(
             "gdkpixbufoverlay", "image_overlay_placeholder")
         self.image_overlay.set_property("location", DEFAULT_IMAGE)
-        self.image_overlay.set_property("relative-x", 1)  # TODO: improve handling 
-        self.image_overlay.set_property("relative-y", 1)  # TODO: idem
+        self.image_overlay.set_property("relative-x", 0.75)  # TODO: improve handling
+        self.image_overlay.set_property("relative-y", 0.1)  # TODO: idem
         self.image_overlay.set_property("alpha", 0.7)
 
         self.video_convert = Gst.ElementFactory.make(
@@ -139,6 +142,7 @@ class Pipeline:
     def __init__(self):
         self.pipeline = Gst.Pipeline()
         self.is_preview_state = False
+        self.is_playing = False
         self.fakesink_counter = 0
         self.speaker_volume = None
 
@@ -147,6 +151,17 @@ class Pipeline:
         self.speaker_sinks = self.get_speaker_sinks()
         #: GstElement used in the pipeline
         self.speaker_sink = None
+
+        #: Streaming sinks that has to be added and linked when pipeline is
+        #: switched to play state.
+        self.stream_sinks = {"audio": [],
+                             "video": [],
+                             "audiovideo": []}
+        #: Store sinks that has to be added and linked when pipeline is
+        #: switched to play state.
+        self.store_sinks = {"audio": [],
+                            "video": [],
+                            "audiovideo": []}
 
         (self.audio_process_source,
          self.audio_process_branch1,
@@ -199,8 +214,11 @@ class Pipeline:
         if self.is_preview_state:
             self.set_stop_state()
             self.is_preview_state = False
+            self.set_output_sink()
 
-        self.pipeline.set_state(Gst.State.PLAYING)
+        if not self.is_playing:
+            self.pipeline.set_state(Gst.State.PLAYING)
+            self.is_playing = True
 
     def set_pause_state(self):
         """
@@ -365,6 +383,24 @@ class Pipeline:
             gstelement.change_settings(update_type, update_value)
         self.set_play_state()
 
+    def get_connected_element(self, pad):
+        """
+        Gets element connected to 'pad' in order to handle
+        easily an element unlinking.
+
+        Returns Gst.Element if there's any, None otherwise.
+        """
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        #  FIXME: May not work on 'tee' element,
+        #         has to be tested before releasing
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        element = None
+        if pad:
+            linkedpad = pad.get_peer()
+            if linkedpad:
+                element = linkedpad.get_parent()
+            return element
+
     def swap_gstelement(self, current_element, requested_element):
         """
         Swap two :class:`~backend.gstelement.Gstelement` dynamically
@@ -383,7 +419,6 @@ class Pipeline:
             pad = current_element.get_static_pad("sink")
             parent = self.get_connected_element(pad)
             blockpad = parent.get_static_pad("src")
-            #print("Get a blockpad from parent", blockpad)  # DEBUG
 
         user_data = {"current_element": current_element,
                      "requested_element": requested_element,
@@ -405,69 +440,6 @@ class Pipeline:
                                  self.pad_probe_cb,
                                  user_data)
 
-    def get_connected_element(self, pad):
-        """
-        Gets element connected to 'pad' in order to handle
-        easily an element unlinking.
-
-        Returns Gst.Element if there's any, None otherwise.
-        """
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        #  FIXME: May not work on 'tee' element,
-        #         has to be tested before releasing
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        element = None
-        if pad:
-            linkedpad = pad.get_peer()
-            if linkedpad:
-                element = linkedpad.get_parent()
-            return element
-
-    def event_probe_cb(self, pad, info, user_data):
-        """
-        Callback handling event and allowing element replacement.
-        """
-        current_element = user_data["current_element"]
-        requested_element = user_data["requested_element"]
-        current_bin = user_data["bin"]
-        info_event = info.get_event()
-
-        if (info_event is None) or (info_event.type != Gst.EventType.EOS):
-            return Gst.PadProbeReturn.PASS
-
-        Gst.Pad.remove_probe(pad, info.id)
-
-        # Getting element context:
-        element_after = self.get_connected_element(pad)  # In v1.0 "pad" is most likely a sourcepad
-        #print("Element after =", element_after)  # DEBUG
-        #print("Current element BEFORE =", current_element)  # DEBUG
-        if element_after != current_element:
-            current_element = pad.get_parent()
-            #print("Current element AFTER =", current_element)  # DEBUG
-        else:
-            # current_element is an endpoint pipeline element
-            element_after = None
-        sinkpad = current_element.get_static_pad("sink")
-        element_before = self.get_connected_element(sinkpad)
-
-        # -------------------------------------
-        # No need to change element's state to NULL before removing?
-        # If so --> thread deadlock (has to be investigated and debugged)
-        # ------------------------------------
-        #    current_element.set_state(Gst.State.NULL)
-        current_bin.remove(current_element)
-        self.add_elements(current_bin, (requested_element,))
-        if element_before:
-            element_before.link(requested_element.gstelement)  # (doesn't apply for input feed)
-        if element_after:
-            requested_element.gstelement.link(element_after)  # (doesn't apply for screensink, filesink)
-        # print("[DEBUG] DONE SO FAR 1")  # DEBUG
-        # Not sure about setting requested_element in PLAYING state
-        # TODO: Maybe call set_play_state
-        requested_element.gstelement.set_state(Gst.State.PLAYING)
-
-        return Gst.PadProbeReturn.DROP
-
     def pad_probe_cb(self, pad, info, user_data):
         """
         Callback for blocking data flow between 2 or 3 elements.
@@ -488,7 +460,6 @@ class Pipeline:
             pad = current_element.get_static_pad("sink")
             parent = self.get_connected_element(pad)
             sourcepad = parent.get_static_pad("src")
-            #print("Get a SOURCEpad from parent", sourcepad)  # DEBUG
             parent_needed = True
         else:
             parent_needed = False
@@ -498,7 +469,7 @@ class Pipeline:
 
         # Push EOS into the element, the probe will be fired when the
         # EOS leaves the element and it has thus drained all of its data
-        # TODO: refactor the next 4 lines
+        # TODO: refactor the 4 lines followings
         if parent_needed:
             sinkpad = parent.get_static_pad("sink")
         else:
@@ -511,6 +482,49 @@ class Pipeline:
             current_element.send_event(Gst.Event.new_eos())
 
         return Gst.PadProbeReturn.OK
+
+    def event_probe_cb(self, pad, info, user_data):
+        """
+        Callback handling event and allowing element replacement.
+        """
+        current_element = user_data["current_element"]
+        requested_element = user_data["requested_element"]
+        current_bin = user_data["bin"]
+        info_event = info.get_event()
+
+        if (info_event is None) or (info_event.type != Gst.EventType.EOS):
+            return Gst.PadProbeReturn.PASS
+
+        Gst.Pad.remove_probe(pad, info.id)
+
+        # Getting element context:
+        element_after = self.get_connected_element(pad)  # In v1.0 "pad" is most likely a sourcepad
+        if element_after != current_element:
+            current_element = pad.get_parent()
+        else:
+            # current_element is an endpoint pipeline element
+            element_after = None
+        sinkpad = current_element.get_static_pad("sink")
+        element_before = self.get_connected_element(sinkpad)
+
+        # -------------------------------------
+        # No need to change element's state to NULL before removing?
+        # If so --> thread deadlock (has to be investigated and debugged)
+        # ------------------------------------
+        #    current_element.set_state(Gst.State.NULL)
+        current_bin.remove(current_element)
+        self.add_elements(current_bin, (requested_element,))
+        if element_before:
+            element_before.link(requested_element.gstelement)  # (doesn't apply for input feed)
+        if element_after:
+            requested_element.gstelement.link(element_after)  # (doesn't apply for screensink, filesink)
+        # Not sure about setting requested_element in PLAYING state
+        # TODO: Maybe call set_play_state
+        current_element = None
+        requested_element.gstelement.set_state(Gst.State.PAUSED)
+        requested_element.gstelement.set_state(Gst.State.PLAYING)
+
+        return Gst.PadProbeReturn.DROP
 
     def build_pipeline(self, pipeline, *branches):
         """
@@ -606,12 +620,10 @@ class Pipeline:
                     tee_output_elements.append(item)
 
         for tee in tee_elements:
-            # self.print_gst("TEE", 0, tee)  # DEBUG
             # Definig the tee input
             for element in tee_input_elements:
                 if element.related_tee_input.name == tee.name:
                     _input_element = element
-                    # self.print_gst("\tINPUT elem", 2, _input_element)  # DEBUG
                     break
 
             _output_elements = []
@@ -623,8 +635,6 @@ class Pipeline:
             if tee.endpoint_tee and not _output_elements:
                 fakesink = self.make_fakesink(tee, self.pipeline)
                 _output_elements.append(fakesink)
-
-            # self.print_gst("\tOUTPUT elem", 2, *_output_elements)  # DEBUG
 
             if not (_input_element and _output_elements):
                 raise TeePatchingError
@@ -733,79 +743,82 @@ class Pipeline:
 
         :param source_element: audio/video input Gstreamer element to add
         """
-        #print("Inside set_input_source", source_element.gstelement.name)  # DEBUG
         source_gstelement = source_element.gstelement
-
         if self._exist_in_pipeline(source_gstelement):
             raise ElementAlreadyAdded
 
         if isinstance(source_element, ioelements.AudioInput):
-            pad = self.audio_process_source[0].get_static_pad("sink")
-            parent = self.get_connected_element(pad)
-            if parent:
-                # An audio source is already set
-                self.swap_gstelement(parent, source_gstelement)
-            else:
-                self.add_elements(self.pipeline, (source_gstelement,))
-                source_gstelement.link(self.audio_process_source[0])
+            index = 0
         elif isinstance(source_element, ioelements.VideoInput):
-            pad = self.video_process_source[0].get_static_pad("sink")
-            parent = self.get_connected_element(pad)
-            if parent:
-                # A video source is already set
-                self.swap_gstelement(parent, source_gstelement)
-            else:
-                self.add_elements(self.pipeline, (source_gstelement,))
-                source_gstelement.link(self.video_process_source[0])
+            index = 1
         else:
             raise NotAudioVideoSource
 
-    def set_output_sink(self, sink_element, stream_type):
+        branch = (self.audio_process_source, self.video_process_source)
+
+        pad = branch[index][0].get_static_pad("sink")
+        parent = self.get_connected_element(pad)
+        if parent:
+            # An audio/video source is already set
+            self.swap_gstelement(parent, source_gstelement)
+        else:
+            self.add_elements(self.pipeline, (source_gstelement,))
+            source_gstelement.link(branch[index][0])
+
+    def set_output_sink(self):
         """
         Add a streaming/storing sink to the pipeline.
-
-        :param sink_element: stream/store
-            :class:`~backend.gstelement.GstElement` to add
-        :param stream_type: branch where ``sink_element`` has to be added as
-            :class:`str`. Value could be either ``audiovideo``, ``audio``
-            or ``video``.
         """
-        sink_gstelement = sink_element.gstelement
-        if self._exist_in_pipeline(sink_gstelement):
-            raise ElementAlreadyAdded
+        for sinks_dict in (self.store_sinks, self.stream_sinks):
+            for stream_type, sinks in sinks_dict.items():
+                for sink in sinks:
+                    parent = self._get_streamstore_parent(sink, stream_type)
+                    sink_gstelement = sink.gstelement
+                    if self._exist_in_pipeline(sink_gstelement):
+                        raise ElementAlreadyAdded
 
-        #current_element = self._get_store_parent(stream_type)
-        #pad = current_element.get_static_pad("src")
-        #pad = self.audio_process_branch3[-2].get_static_pad("src")
-        parent = self._get_store_parent(stream_type)
-        print("parent =", parent.element_kind)  # DEBUG
-        pad = parent.get_static_pad("src")
-        child = self.get_connected_element(pad)
-        print("child =", child)  # DEBUG
+                    child = self.get_connected_element(parent.get_static_pad("src"))
+                    if child:
+                        # A fakesink is linked
+                        parent.gstelement.unlink(child)
+                        self.pipeline.remove(child)
 
-        if child:
-            # Replacing the placeholder fakesink element
-            self.swap_gstelement(child, sink_gstelement)
+                    self.add_elements(self.pipeline, (sink_gstelement,))
+                    parent.link(sink_gstelement)
+                    # FIXME: yet you can only have one filesink per stream
+                    # since tee_endpoint are not used to connect multiple
+                    # filesink to a unique stream_type.
+                    break
+
+    def _get_streamstore_parent(self, ioelement, stream_type):
+        """
+        Get parent element for a :class:`~backend.ioelements.StoreElement` or
+        :class:`~backend.ioelements.StreamElement` depending on ``stream_type``.
+
+        :param ioelement: :class:`~backend.ioelements.StoreElement` or
+            :class:`~backend.ioelements.StreamElement`
+        :param stream_type: could be either ``audiovideo``, ``audio`` or
+            ``video`` as :class:`str`
+
+        :return: :class:`~backend.gstelement.GstElement` to connect to.
+        """
+        if isinstance(ioelement, ioelements.StoreElement):
+            index = 0
+        elif isinstance(ioelement, ioelements.StreamElement):
+            index = 1
         else:
-            pass
-            #self.add_elements(self.pipeline, (sink_gstelement,))
-            #parent_element.link(sink_gstelement)
+            raise NotStoreStreamSink
 
-    def _get_store_parent(self, stream_type):
-        """
-        Get parent element for a :class:`~backend.gstelement.GstElement` of
-        kind ``filesink`` depending of ``stream_type``
+        audio_branch = (self.audio_process_branch3, self.audio_process_branch4)
+        video_branch = (self.video_process_branch3, self.video_process_branch4)
+        audiovideo_branch = (self.av_process_branch4, self.av_process_branch5)
 
-        :param stream_type: type of stream as :class:`str`
-
-        :return: :class:`~backend.gstelement.GstElement` to connect to. 
-        """
         if stream_type == AUDIO_VIDEO_STREAM:
-            return self.av_process_branch4[-2]  # FIXME: index
+            return audiovideo_branch[index][-2]  # FIXME: index
         elif stream_type == AUDIO_ONLY_STREAM:
-            return self.audio_process_branch3[-2]  # FIXME: index
+            return audio_branch[index][-1]  # FIXME: index
         elif stream_type == VIDEO_ONLY_STREAM:
-            return self.video_process_branch3[-2]  # FIXME: index
+            return video_branch[index][-1]  # FIXME: index
         else:
             raise ValueError
 
@@ -851,36 +864,53 @@ class Pipeline:
 
         return tuple(video_sources)
 
-    def create_stream_sink(self):
+    def create_stream_sink(self, element_name, stream_type, ip, port, mount,
+                           password=None):
         """
         Create all output GStreamer elements dedicated to streaming, based on
         current definition of process pipeline.
 
-        :return: :class:`dict` of GStreamer elements
+        :param element_name: name that is given to store object as :class:`str`
+        :param stream_type: could be either ``audiovideo``, ``audio`` or
+            ``video`` as :class:`str`
+        :param ip: address of Icecast server as :class:`str`
+        :param port: port as :class:`int` that Icecast server is listening on.
+        :param mount: mountpoint as :class:`str` used on Icecast server
+        :param password: password as :class:`str` that allows to add a
+            mountpoint
+
+        :return: :class:`~backend.ioelements.StreamElement`
         """
-
-        # TODO use the same system as the create_store_sink()
-        audiovideo_stream_sink = ioelements.StreamElement(
-            "audiovideo_stream_sink", DEFAULT_IP, DEFAULT_PORT, DEFAULT_MOUNT)
-        audio_stream_sink = ioelements.StreamElement(
-            "audio_stream_sink", DEFAULT_IP, DEFAULT_PORT, DEFAULT_MOUNT)
-        video_stream_sink = ioelements.StreamElement(
-            "video_stream_sink", DEFAULT_IP, DEFAULT_PORT, DEFAULT_MOUNT)
-
-        return {"audiovideo_stream_sink": audiovideo_stream_sink,
-                "audio_stream_sink": audio_stream_sink,
-                "video_stream_sink": video_stream_sink}
+        sink = ioelements.StreamElement(element_name, ip, port, mount, password)
+        self._append_sink(self.stream_sinks, sink, stream_type)
+        return sink
 
     def create_store_sink(self, stream_type, filepath, element_name):
         """
-        Add a filesink to the pipeline.
+        Create a filesink and add it to store_sinks dict.
+
+        :param element_name: name that is given to store object as :class:`str`
+        :param stream_type: could be either ``audiovideo``, ``audio`` or
+            ``video`` as :class:`str`
+        :param filepath: full filepath as :class:`str`
 
         :return: :class:`~backend.ioelements.StoreElement`
         """
-        store_sink = ioelements.StoreElement(element_name, filepath)
-        self.set_output_sink(store_sink, stream_type)
+        sink = ioelements.StoreElement(element_name, filepath)
+        self._append_sink(self.store_sinks, sink, stream_type)
+        return sink
 
-        return store_sink
+    def _append_sink(self, sink_dict, sink_element, stream_type):
+        """
+        Append ``sink_element`` in ``sink_dict`` depending on ``stream_type``.
+
+        :param sink_dict: :class:`dict` containing sinks elements
+        :param sink_element: subclass of :class:`~backend.ioelements.OutputElement`
+        :param stream_type: could be either ``audiovideo``, ``audio`` or
+            ``video`` as :class:`str`
+        """
+        element_list = sink_dict.get(stream_type)
+        element_list.append(sink_element)
 
     def create_audio_process(self,):
         """
@@ -924,7 +954,7 @@ class Pipeline:
         # Volume:
         source_volume = GstElement("volume", "source_volume")
         self.speaker_volume = GstElement("volume", "speaker_volume")
-        self.speaker_volume.set_property("volume", 0)  # Muted by default
+        self.speaker_volume.set_property("mute", True)  # Muted by default
         # VU-meter:
         audiolevel = GstElement("level", "audiolevel", tee_input=True)
         audiolevel.set_related_tee(tee_audio_source)
@@ -944,15 +974,10 @@ class Pipeline:
         self.set_default_speaker_sink()
         self.speaker_sink.set_property("sync", False)
 
-        file_sink = GstElement("filesink", "filesink_debug")  # DEBUG
-        file_sink.set_property("location", "/tmp/audio_test.ogg")  # DEBUG
-        file_sink.set_property("sync", False)  # DEBUG
-        fakesink = GstElement("fakesink", "fakesink_debug_audio")  # DEBUG
-
         source_branch = (source_volume, audiolevel, tee_audio_source)
         output_branch_encoding = (vorbis_encoder, tee_audio_process)
         output_branch_muxing = (queue_muxer_av1, ogg_muxer, tee_output_audio)
-        output_branch_storing = (queue_audio_filesink, fakesink)  # DEBUG
+        output_branch_storing = (queue_audio_filesink,)
         output_branch_streaming = (queue_audio_streamsink,)
         output_branch_loudspeakers = (
             queue_speakersink, self.speaker_volume, self.speaker_sink)
@@ -1018,12 +1043,11 @@ class Pipeline:
         self.text_overlay = GstElement(
             "textoverlay", "text_overlay", tee_input=True)
         self.text_overlay.set_related_tee(tee_video_source)
-        self.text_overlay.set_property("text", "Test Text")  # DEBUG
         self.text_overlay.set_property("valignment", "top")
         self.text_overlay.set_property("halignment", "left")
-        self.text_overlay.set_property("font-desc", "Sans, 24")  # DEBUG
+        self.text_overlay.set_property("font-desc", "Sans, 24")  # DEV
         # Converter:
-        videorate = GstElement("videorate", "")
+        videorate = GstElement("videorate", "videorate")
         # Encoder:
         vp8_encoder = GstElement("vp8enc", "vp8_encoder", tee_output=True)
         vp8_encoder.set_related_tee(tee_video_source)
@@ -1043,13 +1067,11 @@ class Pipeline:
         screen_sink.set_related_tee(tee_video_source)
         screen_sink.set_property("sync", False)
 
-        fakesink = GstElement("fakesink", "fakesink_debug_video")  # DEBUG
-
-        source_branch = (videorate, capsfilter, self.image_overlay,
+        source_branch = (videorate, capsfilter,  # self.image_overlay,  # DEV
                          self.text_overlay, tee_video_source,)
         output_branch_encoding = (vp8_encoder,)
         output_branch_muxing = (queue_muxer_av2, mkv_muxer, tee_output_video)
-        output_branch_storing = (queue_video_filesink, fakesink)
+        output_branch_storing = (queue_video_filesink,)
         output_branch_streaming = (queue_video_streamsink,)
         output_branch_screen = (screen_sink,)
 
@@ -1121,16 +1143,14 @@ class Pipeline:
         webm_muxer.set_related_tee(tee_output_audiovideo)
         webm_muxer.set_property("streamable", True)
 
-        file_sinkav = GstElement("filesink", "file_sinkav")  # DEBUG
-        file_sinkav.set_property("location", "/tmp/audiovideo_test.webm")  # DEBUG
-        file_sinkav.set_property("sync", False)  # DEBUG
-        fakesink_av = GstElement("fakesink", "fakesink_av")  # DEBUG
+        fakesink_av_file = GstElement("fakesink", "fakesink_av_file")  # DEBUG
+        fakesink_av_stream = GstElement("fakesink", "fakesink_av_stream")  # DEBUG
 
         source_audio = (queue_muxer_audio,)
         source_video = (queue_muxer_video,)
         output_branch_muxing = (webm_muxer, tee_output_audiovideo)
-        output_branch_storing = (queue_audiovideo_filesink, fakesink_av)#file_sinkav)  # DEBUG remove filesink
-        output_branch_streaming = (queue_audiovideo_streamsink,)
+        output_branch_storing = (queue_audiovideo_filesink, fakesink_av_file)
+        output_branch_streaming = (queue_audiovideo_streamsink, fakesink_av_stream)
 
         return (source_audio,
                 source_video,

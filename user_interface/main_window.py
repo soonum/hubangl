@@ -19,6 +19,7 @@
 #
 # Copyright (c) 2016 David Testé
 
+import pathlib
 import sys
 
 from gi.repository import Gtk
@@ -28,6 +29,7 @@ sys.path.insert(0, "..")  # NOQA # DEBUG
 from backend import ioelements  # DEBUG
 from backend import iofetch  # DEBUG
 from backend import process
+import images
 
 
 def _pack_widgets(box, *widgets):
@@ -52,15 +54,18 @@ class MainWindow:
     default application launched is StandaloneApp.
     """
     def __init__(self, default_app=None):
+        self.images = images.HubanglImages()
+
         self.window = Gtk.Window()
         self.window.set_title("HUBAngl")
         self.window.connect("delete_event", lambda w, e: Gtk.main_quit())
         self.window.set_position(Gtk.WindowPosition.CENTER)
+        self.window.set_icon_from_file(self.images.logo_favicon_path)
 
         if default_app:
             self.current_app = default_app
         else:
-            self.current_app = BaseApp(self.window, "standalone")
+            self.current_app = BaseApp(self.window, "standalone", self.images)
             self.current_app_container = self.current_app.container
 
         self.menu_bar = Gtk.MenuBar()
@@ -91,7 +96,7 @@ class MainWindow:
             "New Session", self.dropmenu_new,
             image=Gtk.STOCK_NEW
         )
-        self.subitel_save_configuration = self._build_menu_item(
+        self.subitem_save_configuration = self._build_menu_item(
             "Save configuration", self.dropmenu_new,
             image=Gtk.STOCK_SAVE
         )
@@ -124,10 +129,12 @@ class MainWindow:
         menu_item.set_submenu(self.dropmenu_feed)
         self.subitem_play = self._build_menu_item(
                 "Play", self.dropmenu_feed,
+                image=self.images.icons["play"]["regular_16px"],
                 callback=self.current_app.feed.controls.on_play_clicked
         )
         self.subitem_stop = self._build_menu_item(
                 "Stop", self.dropmenu_feed,
+                image=self.images.icons["stop"]["regular_16px"],
                 callback=self.current_app.feed.controls.on_stop_clicked
         )
         self._build_separatormenuitem(self.dropmenu_feed)
@@ -140,10 +147,12 @@ class MainWindow:
         self.subitem_inputs.set_submenu(self.dropmenu_inputs)
         self.subitem_audio = self._build_menu_item(
                 "Audio", self.dropmenu_inputs,
+                image=self.images.icons["micro"]["regular_16px"],
                 callback=self.current_app.feed.controls.audio_menu.on_audio_input_clicked
         )
         self.subitem_video = self._build_menu_item(
                 "Video", self.dropmenu_inputs,
+                image=self.images.icons["camera"]["regular_16px"],
                 callback=self.current_app.feed.controls.video_menu.on_video_input_clicked
         )
         # Outputs_____________________________________________________
@@ -155,16 +164,19 @@ class MainWindow:
         self.subitem_outputs.set_submenu(self.dropmenu_outputs)
         self.subitem_stream = self._build_menu_item(
                 "Stream", self.dropmenu_outputs,
+                image=self.images.icons["streaming"]["regular_16px"],
                 callback=self.current_app.feed.controls.stream_menu.on_stream_clicked
         )
         self.subitem_store = self._build_menu_item(
                 "Store", self.dropmenu_outputs,
+                image=self.images.icons["storage"]["regular_16px"],
                 callback=self.current_app.feed.controls.store_menu.on_store_clicked
         )
         self._build_separatormenuitem(self.dropmenu_feed)
         self.subitem_info = self._build_menu_item(
                 "Info", self.dropmenu_feed,
-                callback=self.current_app.feed.controls.info_menu.on_info_clicked
+                image=self.images.icons["settings"]["regular_16px"],
+                callback=self.current_app.feed.controls.settings_menu.on_settings_clicked
         )
 
         return menu_item
@@ -231,7 +243,11 @@ class MainWindow:
         menu_item = Gtk.MenuItem()
         if image:
             hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            icon = Gtk.Image.new_from_icon_name(image, 1)
+            try:
+                icon = Gtk.Image.new_from_icon_name(image, 1)
+            except TypeError:
+                # ``image`` is a Gtk.Image already loaded.
+                icon = image
             label = Gtk.Label(name)
             # accelerator = ?
             _pack_widgets(hbox, icon, label)
@@ -344,9 +360,9 @@ class BaseApp:
     """
     Base application class.
     """
-    def __init__(self, main_window, mode):
+    def __init__(self, main_window, mode, images):
         self.main_window = main_window
-        self.feed = feed.NewFeed(mode)
+        self.feed = feed.NewFeed(mode, images)
         self.container = self.feed.hbox
 
     def make_app(self):  # DEBUG

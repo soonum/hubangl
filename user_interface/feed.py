@@ -31,7 +31,6 @@ from gi.repository import GstVideo
 from gi.repository import GObject
 
 sys.path.insert(0, "..")  # NOQA # TODO: use __init__.py for managing backend package
-import images
 from backend import process
 from backend import iofetch
 
@@ -60,7 +59,7 @@ def _pack_widgets(box, *widgets):
 class NewFeed:
     """
     """
-    def __init__(self, mode):
+    def __init__(self, mode, images):
         self.hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
 
         self.menu_revealer = self._build_revealer()
@@ -87,14 +86,16 @@ class NewFeed:
             self.pipeline, self.menu_revealer, self.placeholder_pipeline)
         self.stream_menu = StreamMenu(self.pipeline, self.menu_revealer)
         self.store_menu = StoreMenu(self.pipeline, self.menu_revealer)
-        self.info_menu = InfoMenu(self.pipeline, self.menu_revealer)
+        self.settings_menu = SettingsMenu(self.pipeline, self.menu_revealer)
 
+        self.images = images
         self.controls = ControlBar(self.pipeline, self.menu_revealer,
+                                   self.images,
                                    self.video_menu,
                                    self.audio_menu,
                                    self.stream_menu,
                                    self.store_menu,
-                                   self.info_menu,
+                                   self.settings_menu,
                                    self.placeholder_pipeline)
         self.controls.overlay_container.add(self.video_monitor)
         self.controls.display_controls()
@@ -210,7 +211,6 @@ class NewFeed:
             if str(Gst.Structure.get_name(s)) == "level":
                 percentage = self.iec_scale(s.get_value("rms")[0])
                 # This is not a true stereo signal.
-                #print('Level value: ', percentage, '%')  # DEBUG
                 self.vumeter_left.set_fraction(percentage)
                 self.vumeter_right.set_fraction(percentage)
 
@@ -232,11 +232,10 @@ class ControlBar:
     """
     Class creating an horizontal control bar containing media controls.
     """
-    def __init__(self, pipeline, menu_revealer,
-                 video_menu, audio_menu, stream_menu, store_menu, info_menu,
+    def __init__(self, pipeline, menu_revealer, images,
+                 video_menu, audio_menu, stream_menu, store_menu, settings_menu,
                  placeholder_pipeline=None):
-        self.images = images.HubanglImages()
-        self.images.load_icons()
+        self.images = images
 
         self._pipeline = pipeline
         self._placeholder_pipeline = placeholder_pipeline
@@ -248,7 +247,7 @@ class ControlBar:
         self.audio_menu = audio_menu
         self.stream_menu = stream_menu
         self.store_menu = store_menu
-        self.info_menu = info_menu
+        self.settings_menu = settings_menu
 
         self.overlay_container = Gtk.Overlay()
         self.controlbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -256,35 +255,11 @@ class ControlBar:
         self.controlbox.set_margin_bottom(6)
         self.controlbox.set_halign(Gtk.Align.CENTER)
 
-        self._load_toolbutton_icons()
         self.toolbar = self._build_toolbar()
-
-        self._build_audio_volume()  # TODO: integrate it into _build_toolbar
 
     def display_controls(self):
         _pack_widgets(self.controlbox, self.toolbar)
         self.overlay_container.add_overlay(self.controlbox)
-
-    def _load_toolbutton_icons(self):
-        """
-        Load all images used as icons for :class:`Gtk.ToolButton`.
-        """
-        self.play_icon = Gtk.Image()
-        self.play_icon.set_from_file("")
-        self.pause_icon = Gtk.Image()
-        self.pause_icon.set_from_file("")
-        self.stop_icon = Gtk.Image()
-        self.stop_icon.set_from_file("")
-        self.video_icon = Gtk.Image()
-        self.video_icon.set_from_file("")
-        self.audio_icon = Gtk.Image()
-        self.audio_icon.set_from_file("")
-        self.stream_icon = Gtk.Image()
-        self.stream_icon.set_from_file("")
-        self.store_icon = Gtk.Image()
-        self.store_icon.set_from_file("")
-        self.audiolevel_icon = Gtk.Image()
-        self.audiolevel_icon.set_from_file("")
 
     def _build_toolbutton(self, name, icon,
                           on_signal=None, callback=None, tooltip_text=None):
@@ -321,34 +296,40 @@ class ControlBar:
             "VIDEO",
             self.images.icons["camera"]["regular"],
             on_signal="clicked",
-            callback=self.video_menu.on_video_input_clicked,
+            callback=self.on_video_clicked,
         )
         self.audio_button = self._build_toolbutton(
             "Audio",
             self.images.icons["micro"]["regular"],
             on_signal="clicked",
-            callback=self.audio_menu.on_audio_input_clicked
+            callback=self.on_audio_clicked
         )
         self.stream_button = self._build_toolbutton(
             "Stream",
             self.images.icons["streaming"]["regular"],
+            #self.images.icons["streaming"]["activated"],
             on_signal="clicked",
-            callback=self.stream_menu.on_stream_clicked
+            callback=self.on_stream_clicked
         )
         self.store_button = self._build_toolbutton(
             "Store",
             self.images.icons["storage"]["regular"],
+            #self.images.icons["storage"]["activated"],  # DEBUG
             on_signal="clicked",
-            callback=self.store_menu.on_store_clicked
+            callback=self.on_store_clicked
         )
-        self.info_button = self._build_toolbutton(
-            "Info",
-            self.images.icons["info"]["regular"],
+        self.settings_button = self._build_toolbutton(
+            "Settings",
+            self.images.icons["settings"]["regular"],
             on_signal="clicked",
-            callback=self.info_menu.on_info_clicked
+            callback=self.on_settings_clicked
         )
-        # FIXME: build this toolbutton correctly
-        self.audio_level_button = Gtk.ToolButton("Audio lvl",)
+        self.mute_button = self._build_toolbutton(
+            "Mute",
+            self.images.icons["speaker"]["striked"],
+            on_signal="clicked",
+            callback=self.on_mute_clicked
+        )
 
         self._populate_toolbar(toolbar,
                                self.play_button,
@@ -357,7 +338,8 @@ class ControlBar:
                                self.audio_button,
                                self.stream_button,
                                self.store_button,
-                               self.info_button)
+                               self.settings_button,
+                               self.mute_button)
         return toolbar
 
     def _populate_toolbar(self, toolbar, *toolbuttons):
@@ -370,41 +352,90 @@ class ControlBar:
         for ind, toolbutton in enumerate(toolbuttons):
             toolbar.insert(toolbutton, ind)
 
-    def _build_audio_volume(self):
-        self.audio_volume_button = Gtk.VolumeButton()
-        self.audio_volume_button.set_value(0)  # Muted by default
-        self.audio_volume_button.connect(
-            "value-changed", self.on_volume_change)
+    def _switch_widget_icons(self, widget, icon_id):
+        """
+        Switch icon type version ``regular`` to ``activated`` or the other way
+        around depending on ``widget`` current icon.
 
-        self.controlbox.pack_end(self.audio_volume_button, False, False, 0)
+        :param widget: :class:`Gtk.ToolButton`
+        :param icon_id: icon name as :class:`str`
+        """
+        icon = self.images.switch_icon_version(icon_id, widget.get_icon_widget())
+        widget.set_icon_widget(icon)
+        widget.show_all()
 
-    def on_volume_change(self, widget, value):
-        if (not self.audio_menu.current_audio_source):
-            self.audio_volume_button.set_value(0)
-        else:
-            self._pipeline.set_speaker_volume(value)
+    def _set_regular_icons(self):
+        """
+        Switch icons that open a menu to their regular version.
+        """
+        icon_mapping = {self.video_button: "camera",
+                        self.audio_button: "micro",
+                        self.stream_button: "streaming",
+                        self.store_button: "storage",
+                        self.settings_button: "settings"}
+
+        for widget, icon_name in icon_mapping.items():
+            widget.set_icon_widget(self.images.get_regular_icon(icon_name))
+            widget.show_all()
 
     def on_play_clicked(self, widget):
+        self.stop_button.set_icon_widget(self.images.get_regular_icon("stop"))
+        self.stop_button.set_sensitive(True)
+
+        self._switch_widget_icons(widget, "play")
         if (not self.video_menu.current_video_source
                 and not self.audio_menu.current_audio_source):
             return
 
-        self._pipeline.set_text_overlay(*self.info_menu.get_text_overlay())
+        self._pipeline.set_text_overlay(*self.settings_menu.get_text_overlay())
 
         # Ensure placeholder pipeline is stopped first in case of
         # loading a session configuration
         self._placeholder_pipeline.set_stop_state()
         self._pipeline.set_play_state()
-
-        if isinstance(widget, Gtk.ToolButton):
-            # Change icon to "pause"
-            pass
-            # A SEGFAULT is raised when the next line is uncommented
-            # TODO: Has to be fixed.
-            #widget.set_icon_widget(Gtk.STOCK_MEDIA_PAUSE)
+        self.play_button.set_sensitive(False)
 
     def on_stop_clicked(self, widget):
+        self.play_button.set_icon_widget(self.images.get_regular_icon("play"))
+        self.play_button.set_sensitive(True)
+
+        self._switch_widget_icons(widget, "stop")
         self._pipeline.set_stop_state()
+        self.stop_button.set_sensitive(False)
+
+    def on_video_clicked(self, widget):
+        self._set_regular_icons()
+        if self.video_menu.on_video_input_clicked(widget):
+            self._switch_widget_icons(widget, "camera")
+
+    def on_audio_clicked(self, widget):
+        self._set_regular_icons()
+        if self.audio_menu.on_audio_input_clicked(widget):
+            self._switch_widget_icons(widget, "micro")
+
+    def on_stream_clicked(self, widget):
+        self._set_regular_icons()
+        if self.stream_menu.on_stream_clicked(widget):
+            self._switch_widget_icons(widget, "streaming")
+
+    def on_store_clicked(self, widget):
+        self._set_regular_icons()
+        if self.store_menu.on_store_clicked(widget):
+            self._switch_widget_icons(widget, "storage")
+
+    def on_settings_clicked(self, widget):
+        self._set_regular_icons()
+        if self.settings_menu.on_settings_clicked(widget):
+            self._switch_widget_icons(widget, "settings")
+
+    def on_mute_clicked(self, widget):
+        if self._pipeline.speaker_volume.get_property("mute"):
+            self._pipeline.speaker_volume.set_property("mute", False)
+            widget.set_icon_widget(self.images.icons["speaker"]["regular"])
+        else:
+            self._pipeline.speaker_volume.set_property("mute", True)
+            widget.set_icon_widget(self.images.icons["speaker"]["striked"])
+        widget.show_all()
 
 
 class AbstractMenu:
@@ -426,13 +457,14 @@ class AbstractMenu:
 
     def _manage_revealer(self, revealer_widget, container_widget):
         """
+        :return: ``True`` if revealer is shown, ``False`` if it is hidden.
         """
         child = revealer_widget.get_child()
 
         if revealer_widget.get_child_revealed():
             if child == container_widget:
                 revealer_widget.set_reveal_child(False)
-                return
+                return False
 
         if child:
             revealer_widget.remove(child)
@@ -440,6 +472,7 @@ class AbstractMenu:
         revealer_widget.add(container_widget)
         container_widget.show_all()
         revealer_widget.set_reveal_child(True)
+        return True
 
     def _make_widget_available(self, *widgets):
         """
@@ -454,6 +487,17 @@ class AbstractMenu:
         """
         for widget in widgets:
             widget.set_sensitive(False)
+
+    def _make_scrolled_window(self, container):
+        """
+        Make ``container`` a vertically scrollable one.
+
+        :param container: :class:`Gtk.Box` or :class:`Gtk.Grid`
+        """
+        self.scrolled_window = Gtk.ScrolledWindow()
+        self.scrolled_window.add_with_viewport(container)
+        self.scrolled_window.set_policy(Gtk.PolicyType.NEVER,
+                                        Gtk.PolicyType.AUTOMATIC)
 
     def _build_confirm_changes_button(self, label=None, signal="clicked",
                                       callback=None):
@@ -680,7 +724,7 @@ class AbstractMenu:
         self.vbox.reorder_child(child, -2)
         self.vbox.show_all()
 
-    def on_combobox_change(self, widget):
+    def on_comboxboxtext_change(self, widget):
         raise NotImplementedError
 
     def on_ipv46_toggle(self, widget):
@@ -714,7 +758,7 @@ class VideoMenu(AbstractMenu):
         else:
             for source in self.pipeline.video_sources:
                 usb_sources.append_text(source.description)
-        usb_sources.connect("changed", self.on_combobox_change)
+        usb_sources.connect("changed", self.on_comboxboxtext_change)
         usb_sources.set_margin_left(24)
         self.video_usb_widgets.append(usb_sources)
 
@@ -762,10 +806,11 @@ class VideoMenu(AbstractMenu):
                       ipv4_entry,
                       self.video_confirm_button,
                       separator)
+        self._make_scrolled_window(vbox)
         return vbox
 
     def on_video_input_clicked(self, widget):
-        self._manage_revealer(self.menu_revealer, self.video_vbox)
+        return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_commtype_toggle(self, widget):
         is_active = widget.get_active()
@@ -776,7 +821,7 @@ class VideoMenu(AbstractMenu):
             self._make_widget_available(*self.video_ip_widgets)
             self._make_widget_unavailable(*self.video_usb_widgets)
 
-    def on_combobox_change(self, widget):
+    def on_comboxboxtext_change(self, widget):
         active_text = widget.get_active_text()
         if active_text:
             self.video_confirm_button.set_sensitive(True)
@@ -854,10 +899,11 @@ class AudioMenu(AbstractMenu):
                       output_sinks,
                       self.audio_confirm_button,
                       separator)
+        self._make_scrolled_window(vbox)
         return vbox
 
     def on_audio_input_clicked(self, widget):
-        self._manage_revealer(self.menu_revealer, self.audio_vbox)
+        return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_input_change(self, widget):
         self.audio_confirm_button.set_sensitive(True)
@@ -873,7 +919,7 @@ class AudioMenu(AbstractMenu):
         """
         Mute audio input in the pipeline. This take effect immediatly.
         """
-        pass
+        raise NotImplementedError
 
     def on_confirm_clicked(self, widget):
         if self.requested_audio_source != self.current_audio_source:
@@ -918,10 +964,11 @@ class StreamMenu(AbstractMenu):
                       self.settings_revealer,
                       separator,
                       self.stream_add_button)
+        self._make_scrolled_window(vbox)
         return vbox
 
     def on_stream_clicked(self, widget):
-        self._manage_revealer(self.menu_revealer, self.stream_vbox)
+        self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_add_clicked(self, widget):
         stream_element = self.StreamSection(
@@ -1007,19 +1054,6 @@ class StreamMenu(AbstractMenu):
             self.stream_remote_widgets.extend(
                 (ipv4_radiobutton, ipv6_radiobutton, ipv4_entry))
 
-            #localhost_label = Gtk.Label("localhost : ")
-            #port_entry = Gtk.Entry()
-            #port_entry.set_max_length(5)
-            #port_entry.set_width_chars(5)
-            #port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
-            #port_entry.set_sensitive(False)  # DEV
-            #localhost_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            #localhost_hbox.set_margin_left(24)
-            #_pack_widgets(localhost_hbox, localhost_label, self.port_entry)
-
-            #self.stream_local_widgets.extend((self.port_entry,))  # DEBUG
-            #self._make_widget_unavailable(*self.stream_local_widgets)  # DEBUG
-
             mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             mountpoint_label = Gtk.Label("Mountpoint : ")
             mountpoint_entry = Gtk.Entry()
@@ -1035,9 +1069,13 @@ class StreamMenu(AbstractMenu):
             _pack_widgets(password_hbox, password_label, password_entry)
 
             radiobutton_hbox = self._build_format_group()
+            # FIXME: .mkv format is not supported by shout2send Gst element.
+            # It has to be either .ogg or .webm format in order to stream
+            # video only feed.
+            self.video_radiobutton.set_sensitive(False)
 
             self.stream_confirm_button = self._build_confirm_changes_button(
-                callback=None)
+                callback=self.on_confirm_clicked)
             # Label only used at initialization
             self.stream_confirm_button.set_label("Create")
 
@@ -1067,11 +1105,11 @@ class StreamMenu(AbstractMenu):
                 pass
 
         def on_mountpoint_change(self, widget):
-            self.get_ipv4_address()  # DEBUG
+            #self.get_ipv4_address()  # DEBUG
             text = widget.get_text()
             if text != self.mountpoint:
                 self.mountpoint = text
-                if self.server_address_entries and self.port_entry:
+                if self.port_entry:
                     self.stream_confirm_button.set_sensitive(True)
 
         def on_password_change(self, widget):
@@ -1089,17 +1127,24 @@ class StreamMenu(AbstractMenu):
                 self.stream_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
+            try:
+                self.ip_address, self.port = self.get_ipv4_address()
+            except TypeError:
+                # All IP/port fields are not filled
+                return
+
             element_name = self.mountpoint.split("/")[-1]
+            full_mountpoint = self.mountpoint + self._get_format_extension()
             if not self.streamsink:
                 self.streamsink = self.pipeline.create_stream_sink(
-                    self.current_stream_type, self.ip_address, self.port,
-                    self.mountpoint, self.password, element_name)
+                    element_name, self.current_stream_type, self.ip_address,
+                    self.port, full_mountpoint, self.password)
             else:
                 # It's a property update
-                pass
+                raise NotImplementedError
 
             if not self.summary_vbox:
-                self.summary_vbox = self._build_summary_box(self.mountpoint)
+                self.summary_vbox = self._build_summary_box(element_name)
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
@@ -1108,11 +1153,11 @@ class StreamMenu(AbstractMenu):
                 self._settings_revealer.remove(self.vbox)
                 self._parent_container.show_all()
 
-            self.store_confirm_button.set_label("Confirm")
-            self.store_confirm_button.set_sensitive(False)
+            self.stream_confirm_button.set_label("Confirm")
+            self.stream_confirm_button.set_sensitive(False)
 
         def on_settings_clicked(self, widget):
-            self._manage_revealer(self._revealer, self.vbox)
+            return self._manage_revealer(self._revealer, self.vbox)
 
 
 class StoreMenu(AbstractMenu):
@@ -1142,10 +1187,11 @@ class StoreMenu(AbstractMenu):
                       self.settings_revealer,
                       separator,
                       self.store_add_button)
+        self._make_scrolled_window(vbox)
         return vbox
 
     def on_store_clicked(self, widget):
-        self._manage_revealer(self.menu_revealer, self.store_vbox)
+        return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_add_clicked(self, widget):
         store_element = self.StoreSection(
@@ -1264,10 +1310,10 @@ class StoreMenu(AbstractMenu):
             self.store_confirm_button.set_sensitive(False)
 
         def on_settings_clicked(self, widget):
-            self._manage_revealer(self._revealer, self.vbox)
+            return self._manage_revealer(self._revealer, self.vbox)
 
 
-class InfoMenu(AbstractMenu):
+class SettingsMenu(AbstractMenu):
     """
     """
     def __init__(self, pipeline, menu_revealer):
@@ -1283,16 +1329,17 @@ class InfoMenu(AbstractMenu):
                           "Bottom-Left", "Bottom-Right",
                           "Center")
 
-        self.info_vbox = self._build_info_vbox()
+        self.settings_vbox = self._build_settings_vbox()
 
-    def _build_info_vbox(self):
-        title = Gtk.Label("Information")
+    def _build_settings_vbox(self):
+        title = Gtk.Label("Settings")
         title.set_margin_bottom(6)
 
         text_overlay_entry = Gtk.Entry()
         text_overlay_entry.set_placeholder_text("Text displayed on screen")
         text_overlay_entry.set_width_chars(30)
         text_overlay_entry.connect("changed", self.on_text_change)
+        text_overlay_entry.set_sensitive(False)  # DEV
 
         text_position_combobox = Gtk.ComboBoxText()
         for position in self.positions:
@@ -1304,6 +1351,7 @@ class InfoMenu(AbstractMenu):
         image_chooser_button = Gtk.FileChooserButton()
         image_chooser_button.set_title("Select an image to display")
         image_chooser_button.connect("file-set", self.on_image_selected)
+        image_chooser_button.set_sensitive(False)  # DEV
 
         image_position_combobox = Gtk.ComboBoxText()
         for position in self.positions:
@@ -1312,9 +1360,9 @@ class InfoMenu(AbstractMenu):
         image_position_combobox.set_margin_left(24)
         image_position_combobox.set_sensitive(False)  # DEV
 
-        self.info_confirm_button = self._build_confirm_changes_button(
+        self.settings_confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
-        self.info_confirm_button.set_label("Confirm")
+        self.settings_confirm_button.set_label("Confirm")
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         separator.set_margin_top(6)
@@ -1327,9 +1375,9 @@ class InfoMenu(AbstractMenu):
                       text_position_combobox,
                       image_chooser_button,
                       image_position_combobox,
-                      self.info_confirm_button,
+                      self.settings_confirm_button,
                       separator)
-
+        self._make_scrolled_window(vbox)
         return vbox
 
     def get_text_overlay(self):
@@ -1339,16 +1387,16 @@ class InfoMenu(AbstractMenu):
         return (self.requested_text_overlay,
                 self.h_alignment, self.v_alignment)
 
-    def on_info_clicked(self, widget):
-        self._manage_revealer(self.menu_revealer, self.info_vbox)
+    def on_settings_clicked(self, widget):
+        return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_text_change(self, widget):
         self.requested_text_overlay = widget.get_text()
-        self.info_confirm_button.set_sensitive(True)
+        self.settings_confirm_button.set_sensitive(True)
 
     def on_image_selected(self, widget):
         self.requested_image_path = widget.get_filename()
-        self.info_confirm_button.set_sensitive(True)
+        self.settings_confirm_button.set_sensitive(True)
 
     def on_confirm_clicked(self, widget):
         if self.requested_text_overlay != self.current_text_overlay:
@@ -1360,4 +1408,4 @@ class InfoMenu(AbstractMenu):
             self.pipeline.set_image_overlay(self.requested_image_path, -6, 6)
             self.current_image_path = self.requested_image_path
 
-        self.info_confirm_button.set_sensitive(False)
+        self.settings_confirm_button.set_sensitive(False)
