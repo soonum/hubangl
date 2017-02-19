@@ -231,6 +231,7 @@ class Pipeline:
         Set pipeline instance to NULL state and end broadcasting.
         """
         self.pipeline.set_state(Gst.State.NULL)
+        self.is_playing = False
 
     def set_preview_state(self, default_source_type_requested):
         """
