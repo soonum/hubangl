@@ -20,6 +20,7 @@
 
 import os
 import sys
+import time
 
 import gi
 #gi.require_version("Gtk", "3.0")  # NOQA # DEBUG
@@ -1246,9 +1247,17 @@ class StoreMenu(AbstractMenu):
             name_entry.set_input_purpose(Gtk.InputPurpose.ALPHA)
             name_entry.set_placeholder_text("Type a filename")
             name_entry.connect("changed", self.on_entry_change)
-
             name_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             _pack_widgets(name_hbox, name_label, name_entry)
+
+            self.automatic_naming_checkbutton = Gtk.CheckButton()
+            self.automatic_naming_checkbutton.set_active(True)
+            self.automatic_naming_checkbutton.set_sensitive(False)  # DEV
+            automatic_naming_label = Gtk.Label("Make Unique filename")
+            automatic_naming_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            _pack_widgets(automatic_naming_hbox,
+                          self.automatic_naming_checkbutton,
+                          automatic_naming_label)
 
             radiobutton_hbox = self._build_format_group()
 
@@ -1261,10 +1270,21 @@ class StoreMenu(AbstractMenu):
             _pack_widgets(vbox,
                           folder_chooser_button,
                           name_hbox,
+                          automatic_naming_hbox,
                           radiobutton_hbox,
                           self._audiovideo_format_hbox,
                           self.store_confirm_button)
             return vbox
+
+        def _get_formatted_timestamp(self):
+            """
+            Get a formatted suffix, mainly used to make unique filename.
+
+            :return: :class:`str`
+            """
+            if self.automatic_naming_checkbutton.get_active():
+                return time.strftime("_%Y%m%d__%H-%M-%S", time.gmtime())
+            return ""
 
         def on_folder_selected(self, widget):
             self.folder_selection = widget.get_filename()
@@ -1286,7 +1306,9 @@ class StoreMenu(AbstractMenu):
                 self.store_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
-            full_filename = self.filename + self._get_format_extension()
+            full_filename = (self.filename
+                             + self._get_formatted_timestamp()
+                             + self._get_format_extension())
             filepath = os.path.join(self.folder_selection, full_filename)
             element_name = self.current_stream_type + "_" + self.filename
             if not self.filesink:
