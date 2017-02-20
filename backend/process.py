@@ -230,6 +230,9 @@ class Pipeline:
         """
         Set pipeline instance to NULL state and end broadcasting.
         """
+        if not self.is_playing:
+            return
+
         self.pipeline.set_state(Gst.State.NULL)
         self.is_playing = False
 
