@@ -130,12 +130,12 @@ class MainWindow:
         self.subitem_play = self._build_menu_item(
                 "Play", self.dropmenu_feed,
                 image=self.images.icons["play"]["regular_16px"],
-                callback=self.current_app.feed.controls.on_play_clicked
+                callback=self.on_play_clicked
         )
         self.subitem_stop = self._build_menu_item(
                 "Stop", self.dropmenu_feed,
                 image=self.images.icons["stop"]["regular_16px"],
-                callback=self.current_app.feed.controls.on_stop_clicked
+                callback=self.on_stop_clicked
         )
         self._build_separatormenuitem(self.dropmenu_feed)
         # Inputs______________________________________________________
@@ -148,12 +148,12 @@ class MainWindow:
         self.subitem_audio = self._build_menu_item(
                 "Audio", self.dropmenu_inputs,
                 image=self.images.icons["micro"]["regular_16px"],
-                callback=self.current_app.feed.controls.audio_menu.on_audio_input_clicked
+                callback=self.on_audio_input_clicked
         )
         self.subitem_video = self._build_menu_item(
                 "Video", self.dropmenu_inputs,
                 image=self.images.icons["camera"]["regular_16px"],
-                callback=self.current_app.feed.controls.video_menu.on_video_input_clicked
+                callback=self.on_video_input_clicked
         )
         # Outputs_____________________________________________________
         self.subitem_outputs = self._build_menu_item(
@@ -165,18 +165,18 @@ class MainWindow:
         self.subitem_stream = self._build_menu_item(
                 "Stream", self.dropmenu_outputs,
                 image=self.images.icons["streaming"]["regular_16px"],
-                callback=self.current_app.feed.controls.stream_menu.on_stream_clicked
+                callback=self.on_stream_clicked
         )
         self.subitem_store = self._build_menu_item(
                 "Store", self.dropmenu_outputs,
                 image=self.images.icons["storage"]["regular_16px"],
-                callback=self.current_app.feed.controls.store_menu.on_store_clicked
+                callback=self.on_store_clicked
         )
         self._build_separatormenuitem(self.dropmenu_feed)
         self.subitem_info = self._build_menu_item(
                 "Info", self.dropmenu_feed,
                 image=self.images.icons["settings"]["regular_16px"],
-                callback=self.current_app.feed.controls.settings_menu.on_settings_clicked
+                callback=self.on_settings_clicked
         )
 
         return menu_item
@@ -299,7 +299,6 @@ class MainWindow:
 
         if isinstance(new_application, type(self.current_app)):
             #new_application.__del__()
-            print("New instance deleted")  # DEBUG
             return
 
         self.main_vbox.remove(self.current_app_container)
@@ -308,7 +307,40 @@ class MainWindow:
         # TODO: improve packing routine
         self.main_vbox.pack_end(self.current_app_container, False, False, 0)
         self.main_vbox.show_all()
-        print("New instance added to main window")  # DEBUG
+
+    def on_play_clicked(self, widget):
+        if not self.current_app.feed.controls.play_button.get_sensitive():
+            return
+
+        self.current_app.feed.controls.on_play_clicked(
+                self.current_app.feed.controls.play_button)
+
+    def on_stop_clicked(self, widget):
+        if not self.current_app.feed.controls.stop_button.get_sensitive():
+            return
+
+        self.current_app.feed.controls.on_stop_clicked(
+                self.current_app.feed.controls.stop_button)
+
+    def on_video_input_clicked(self, widget):
+        self.current_app.feed.controls.on_video_clicked(
+                self.current_app.feed.controls.video_button)
+
+    def on_audio_input_clicked(self, widget):
+        self.current_app.feed.controls.on_audio_clicked(
+                self.current_app.feed.controls.audio_button)
+
+    def on_stream_clicked(self, widget):
+        self.current_app.feed.controls.on_stream_clicked(
+                self.current_app.feed.controls.stream_button)
+
+    def on_store_clicked(self, widget):
+        self.current_app.feed.controls.on_store_clicked(
+                self.current_app.feed.controls.store_button)
+
+    def on_settings_clicked(self, widget):
+        self.current_app.feed.controls.on_settings_clicked(
+                self.current_app.feed.controls.settings_button)
 
     def on_menu_item_new_activate(self, widget):
         pass
