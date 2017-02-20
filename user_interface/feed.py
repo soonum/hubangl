@@ -308,14 +308,12 @@ class ControlBar:
         self.stream_button = self._build_toolbutton(
             "Stream",
             self.images.icons["streaming"]["regular"],
-            #self.images.icons["streaming"]["activated"],
             on_signal="clicked",
             callback=self.on_stream_clicked
         )
         self.store_button = self._build_toolbutton(
             "Store",
             self.images.icons["storage"]["regular"],
-            #self.images.icons["storage"]["activated"],  # DEBUG
             on_signal="clicked",
             callback=self.on_store_clicked
         )
@@ -365,7 +363,7 @@ class ControlBar:
         widget.set_icon_widget(icon)
         widget.show_all()
 
-    def _set_regular_icons(self):
+    def set_regular_icons(self):
         """
         Switch icons that open a menu to their regular version.
         """
@@ -397,6 +395,9 @@ class ControlBar:
         self.play_button.set_sensitive(False)
 
     def on_stop_clicked(self, widget):
+        if not self._pipeline.is_playing:
+            return
+
         self.play_button.set_icon_widget(self.images.get_regular_icon("play"))
         self.play_button.set_sensitive(True)
 
@@ -405,27 +406,27 @@ class ControlBar:
         self.stop_button.set_sensitive(False)
 
     def on_video_clicked(self, widget):
-        self._set_regular_icons()
+        self.set_regular_icons()
         if self.video_menu.on_video_input_clicked(widget):
             self._switch_widget_icons(widget, "camera")
 
     def on_audio_clicked(self, widget):
-        self._set_regular_icons()
+        self.set_regular_icons()
         if self.audio_menu.on_audio_input_clicked(widget):
             self._switch_widget_icons(widget, "micro")
 
     def on_stream_clicked(self, widget):
-        self._set_regular_icons()
+        self.set_regular_icons()
         if self.stream_menu.on_stream_clicked(widget):
             self._switch_widget_icons(widget, "streaming")
 
     def on_store_clicked(self, widget):
-        self._set_regular_icons()
+        self.set_regular_icons()
         if self.store_menu.on_store_clicked(widget):
             self._switch_widget_icons(widget, "storage")
 
     def on_settings_clicked(self, widget):
-        self._set_regular_icons()
+        self.set_regular_icons()
         if self.settings_menu.on_settings_clicked(widget):
             self._switch_widget_icons(widget, "settings")
 
@@ -969,7 +970,7 @@ class StreamMenu(AbstractMenu):
         return vbox
 
     def on_stream_clicked(self, widget):
-        self._manage_revealer(self.menu_revealer, self.scrolled_window)
+        return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_add_clicked(self, widget):
         stream_element = self.StreamSection(
