@@ -214,11 +214,16 @@ class Pipeline:
         if self.is_preview_state:
             self.set_stop_state()
             self.is_preview_state = False
-            self.set_output_sink()
 
         if not self.is_playing:
-            self.pipeline.set_state(Gst.State.PLAYING)
-            self.is_playing = True
+            try:
+                self.set_output_sink()
+            except ElementAlreadyAdded:
+                # Ignoring error if an element was previously added.
+                pass
+            finally:
+                self.pipeline.set_state(Gst.State.PLAYING)
+                self.is_playing = True
 
     def set_pause_state(self):
         """
@@ -230,9 +235,6 @@ class Pipeline:
         """
         Set pipeline instance to NULL state and end broadcasting.
         """
-        if not self.is_playing:
-            return
-
         self.pipeline.set_state(Gst.State.NULL)
         self.is_playing = False
 
