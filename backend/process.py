@@ -216,14 +216,9 @@ class Pipeline:
             self.is_preview_state = False
 
         if not self.is_playing:
-            try:
-                self.set_output_sink()
-            except ElementAlreadyAdded:
-                # Ignoring error if an element was previously added.
-                pass
-            finally:
-                self.pipeline.set_state(Gst.State.PLAYING)
-                self.is_playing = True
+            self.set_output_sink()
+            self.pipeline.set_state(Gst.State.PLAYING)
+            self.is_playing = True
 
     def set_pause_state(self):
         """
@@ -781,7 +776,9 @@ class Pipeline:
                     parent = self._get_streamstore_parent(sink, stream_type)
                     sink_gstelement = sink.gstelement
                     if self._exist_in_pipeline(sink_gstelement):
-                        raise ElementAlreadyAdded
+                        # The element has been added since the pipeline was
+                        # set in play state previously.
+                        continue
 
                     child = self.get_connected_element(parent.get_static_pad("src"))
                     if child:
