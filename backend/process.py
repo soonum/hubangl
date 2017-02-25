@@ -288,19 +288,6 @@ class Pipeline:
         """
         raise NotImplementedError
 
-    def set_speaker_volume(self, value):
-        """
-        Set audio volume value for speakers.
-
-        :param value: volume value in percentage as :class:`float`
-        """
-        if not self.speaker_volume:
-            return
-        if value > 1.0:
-            raise ValueError
-
-        self.speaker_volume.set_property("volume", value)
-
     def set_text_overlay(self, text, h_alignment, v_alignment):
         """
         Set text displayed over video stream.
@@ -366,23 +353,17 @@ class Pipeline:
                 self.set_speaker_sink(value)
                 return
 
-    def update_gstelement(self, gstelement, update_type, update_value):
-        assert self.is_standingby()
+    def update_gstelement_properties(self, gstelement, **kargs):
+        """
+        Update properties of a :class:`~backend.GstElement` if there is any
+        change to make.
 
-        if not (isinstance(ioelements.InputElement)
-                or isinstance(ioelements.OutputElement)):
-            return
-
-        possible_update = ["device",
-                           "location",
-                           "path",
-                           "ip",
-                           "port",
-                           "mount",
-                           "password"]
-        if update_type in possible_update:
-            gstelement.change_settings(update_type, update_value)
-        self.set_play_state()
+        :param gstelement: :class:`~backend.GstElement`
+        :param kargs: field to update with property key as :class:`str` and
+            value of the right type
+        """
+        for property_key, value in kargs.items():
+            gstelement.set_property(property_key, value)
 
     def get_connected_element(self, pad):
         """

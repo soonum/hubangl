@@ -394,6 +394,10 @@ class ControlBar:
         self._pipeline.set_play_state()
         self.play_button.set_sensitive(False)
 
+    # TODO: Warn user about the need to press STOP button if any changes are
+    # requested in any feed ouput. Maybe warn the user via a notification
+    # window or a pop-up window.
+
     def on_stop_clicked(self, widget):
         if not self._pipeline.is_playing:
             return
@@ -404,6 +408,22 @@ class ControlBar:
         self._switch_widget_icons(widget, "stop")
         self._pipeline.set_stop_state()
         self.stop_button.set_sensitive(False)
+
+        # FIXME: a change of feed type does not create a new output element
+        # neither remove the current one. As a consequence, once a feed type
+        # is chosen, after user click play this not possible (yet) to change
+        # that type. A new output element must be created via `Add` button.
+        for feed_streamed in self.stream_menu.feed_streamed:
+            self._pipeline.update_gstelement_properties(
+                feed_streamed.streamsink, **feed_streamed.get_properties())
+            feed_streamed.full_filename_label.set_label(
+                feed_streamed.element_name)
+
+        for feed_recorded in self.store_menu.feed_recorded:
+            self._pipeline.update_gstelement_properties(
+                feed_recorded.filesink, **feed_recorded.get_properties())
+            feed_recorded.full_filename_label.set_label(
+                feed_recorded.full_filename)
 
     def on_video_clicked(self, widget):
         self.set_regular_icons()
@@ -994,6 +1014,8 @@ class StreamMenu(AbstractMenu):
             self.mountpoint = None
             self.password = None
 
+            self.element_name = None
+
             self.current_stream_type = None
 
             self.audiovideo_radiobutton = None
@@ -1094,6 +1116,18 @@ class StreamMenu(AbstractMenu):
                           self.stream_confirm_button,)
             return vbox
 
+        def get_properties(self):
+            """
+            Get Gstreamer properties of
+            :class:`~user_interface.StreamMenu.StreamSection` instance.
+
+            :return: :class:`dict` as property_key: value
+            """
+            return {"ip": self.ip_address,
+                    "mount": self.port,
+                    "mount": self.full_mountpoint,
+                    "password": self.password}
+
         def on_remote_server_toggle(self, widget):
             if widget.get_active():
                 # TODO: hide widgets related to local_server and then show
@@ -1135,15 +1169,12 @@ class StreamMenu(AbstractMenu):
                 # All IP/port fields are not filled
                 return
 
-            element_name = self.mountpoint.split("/")[-1]
-            full_mountpoint = self.mountpoint + self._get_format_extension()
+            self.element_name = self.mountpoint.split("/")[-1]
+            self.full_mountpoint = self.mountpoint + self._get_format_extension()
             if not self.streamsink:
                 self.streamsink = self.pipeline.create_stream_sink(
-                    element_name, self.current_stream_type, self.ip_address,
-                    self.port, full_mountpoint, self.password)
-            else:
-                # It's a property update
-                raise NotImplementedError
+                    self.element_name, self.current_stream_type, self.ip_address,
+                    self.port, self.full_mountpoint, self.password)
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(element_name)
@@ -1170,7 +1201,7 @@ class StoreMenu(AbstractMenu):
         self.settings_revealer = self._build_revealer()
         self.store_vbox = self._build_store_vbox()
 
-        self.file_stored = []
+        self.feed_recorded = []
 
     def _build_store_vbox(self):
         title = Gtk.Label("Storing")
@@ -1198,8 +1229,8 @@ class StoreMenu(AbstractMenu):
     def on_add_clicked(self, widget):
         store_element = self.StoreSection(
             self.pipeline, self.settings_revealer,
-            self.store_vbox, len(self.file_stored) + 1)
-        self.file_stored.append(store_element)
+            self.store_vbox, len(self.feed_recorded) + 1)
+        self.feed_recorded.append(store_element)
         self._manage_revealer(self.settings_revealer, store_element.vbox)
 
     class StoreSection(AbstractMenu):
@@ -1287,6 +1318,15 @@ class StoreMenu(AbstractMenu):
                 return time.strftime("_%Y%m%d__%H-%M-%S", time.gmtime())
             return ""
 
+        def get_properties(self):
+            """
+            Get Gstreamer properties of
+            :class:`~user_interface.StoreMenu.StoreSection` instance.
+
+            :return: :class:`dict` as property_key: value
+            """
+            return {"location": self.filepath}
+
         def on_folder_selected(self, widget):
             self.folder_selection = widget.get_filename()
             if self.filename:
@@ -1307,20 +1347,19 @@ class StoreMenu(AbstractMenu):
                 self.store_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
-            full_filename = (self.filename
-                             + self._get_formatted_timestamp()
-                             + self._get_format_extension())
-            filepath = os.path.join(self.folder_selection, full_filename)
+            self.full_filename = (self.filename
+                                  + self._get_formatted_timestamp()
+                                  + self._get_format_extension())
+            print("Confirm clicked full_filename =", self.full_filename)
+            self.filepath = os.path.join(
+                self.folder_selection, self.full_filename)
             element_name = self.current_stream_type + "_" + self.filename
             if not self.filesink:
                 self.filesink = self.pipeline.create_store_sink(
-                    self.current_stream_type, filepath, element_name)
-            else:
-                # It's a property update
-                self.full_filename_label.set_label(full_filename)
+                    self.current_stream_type, self.filepath, element_name)
 
             if not self.summary_vbox:
-                self.summary_vbox = self._build_summary_box(full_filename)
+                self.summary_vbox = self._build_summary_box(self.full_filename)
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
