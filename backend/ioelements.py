@@ -41,7 +41,7 @@ class InputElement:
         # Put an assertion HERE to check pipeline state
         self.gstelement = None
 
-    def change_property(self, property_name, property_value):
+    def set_property(self, property_name, property_value):
         self.gstelement.set_property(property_name, property_value)
 
 
@@ -149,7 +149,7 @@ class OutputElement:
         # Put an assertion HERE to check pipeline state
         self.gstelement = None
 
-    def change_property(self, property_name, property_value):
+    def set_property(self, property_name, property_value):
         self.gstelement.set_property(property_name, property_value)
 
 
