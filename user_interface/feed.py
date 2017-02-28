@@ -378,6 +378,9 @@ class ControlBar:
             widget.show_all()
 
     def on_play_clicked(self, widget):
+        if not self._pipeline.is_preview_state:
+            return
+
         self.stop_button.set_icon_widget(self.images.get_regular_icon("stop"))
         self.stop_button.set_sensitive(True)
 
@@ -724,9 +727,6 @@ class AbstractMenu:
             if combobox.get_parent() == hbox:
                 return combobox.get_active_text()
 
-    def on_format_radiobutton_toggle(self, widget):
-        raise NotImplementedError
-
     def _change_output_format(self, widget):
         """
         """
@@ -747,6 +747,9 @@ class AbstractMenu:
         self.vbox.pack_start(child, False, False, 0)
         self.vbox.reorder_child(child, -2)
         self.vbox.show_all()
+
+    def on_format_radiobutton_toggle(self, widget):
+        raise NotImplementedError
 
     def on_comboxboxtext_change(self, widget):
         raise NotImplementedError
@@ -773,36 +776,36 @@ class VideoMenu(AbstractMenu):
         title = Gtk.Label("Video Source")
         title.set_margin_top(6)
 
-        usb_radiobutton = Gtk.RadioButton("USB")
-        usb_radiobutton.set_active(True)
-        usb_radiobutton.connect("toggled", self.on_commtype_toggle)
-        usb_sources = Gtk.ComboBoxText()
+        self.usb_radiobutton = Gtk.RadioButton("USB")
+        self.usb_radiobutton.set_active(True)
+        self.usb_radiobutton.connect("toggled", self.on_commtype_toggle)
+        self.usb_sources = Gtk.ComboBoxText()
         if not self.pipeline.video_sources:
-            usb_sources.append_text("")
+            self.usb_sources.append_text("")
         else:
             for source in self.pipeline.video_sources:
-                usb_sources.append_text(source.description)
-        usb_sources.connect("changed", self.on_comboxboxtext_change)
-        usb_sources.set_margin_left(24)
-        self.video_usb_widgets.append(usb_sources)
+                self.usb_sources.append_text(source.description)
+        self.usb_sources.connect("changed", self.on_comboxboxtext_change)
+        self.usb_sources.set_margin_left(24)
+        self.video_usb_widgets.append(self.usb_sources)
 
-        ip_radiobutton = Gtk.RadioButton(
-            label="IP (available soon)", group=usb_radiobutton)
-        ip_radiobutton.connect("toggled", self.on_commtype_toggle)
+        self.ip_radiobutton = Gtk.RadioButton(
+            label="IP (soon)", group=self.usb_radiobutton)
+        self.ip_radiobutton.connect("toggled", self.on_commtype_toggle)
         # TODO: Remove the next line once IP camera are handled in a pipeline.
-        ip_radiobutton.set_sensitive(False)
+        self.ip_radiobutton.set_sensitive(False)
         # ---------------------------------
 
         ipv46_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         ipv46_hbox.set_margin_left(24)
 
-        ipv4_radiobutton = Gtk.RadioButton("v4")
-        ipv4_radiobutton.set_active(True)
-        ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
+        self.ipv4_radiobutton = Gtk.RadioButton("v4")
+        self.ipv4_radiobutton.set_active(True)
+        self.ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
 
-        ipv6_radiobutton = Gtk.RadioButton("v6", group=ipv4_radiobutton)
-        ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
-        _pack_widgets(ipv46_hbox, ipv4_radiobutton, ipv6_radiobutton)
+        self.ipv6_radiobutton = Gtk.RadioButton("v6", group=self.ipv4_radiobutton)
+        self.ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
+        _pack_widgets(ipv46_hbox, self.ipv4_radiobutton, self.ipv6_radiobutton)
 
         ipv4_entry = self._build_ipv4_entry()
         ipv4_entry.set_margin_left(24)
@@ -812,7 +815,7 @@ class VideoMenu(AbstractMenu):
         # ipv6_entry.set_margin_left(24)
 
         self.video_ip_widgets.extend(
-            (ipv4_radiobutton, ipv6_radiobutton, ipv4_entry))
+            (self.ipv4_radiobutton, self.ipv6_radiobutton, ipv4_entry))
         self._make_widget_unavailable(*self.video_ip_widgets)
 
         self.video_confirm_button = self._build_confirm_changes_button(
@@ -825,13 +828,43 @@ class VideoMenu(AbstractMenu):
         vbox.set_margin_right(6)
         _pack_widgets(vbox,
                       title,
-                      usb_radiobutton, usb_sources,
-                      ip_radiobutton, ipv46_hbox,
+                      self.usb_radiobutton,
+                      self.usb_sources,
+                      self.ip_radiobutton,
+                      ipv46_hbox,
                       ipv4_entry,
                       self.video_confirm_button,
                       separator)
         self._make_scrolled_window(vbox)
         return vbox
+
+    def get_properties(self):
+        """
+        Get properties set in the menu.
+
+        :return: :class:`dict` as property_key: value
+        """
+        usb_radiobutton_value = self.usb_radiobutton.is_active()
+        usb_source_selected = self.usb_source.get_active_text()
+
+        ip_radiobutton_value = self.ip_radiobutton.is_active()
+        ipv4_radiobutton_value = self.ipv4_radiobutton.is_active()
+        ipv6_radiobutton_value = self.ipv6_radiobutton.is_active()
+        # TODO: add IP-related entries fields
+
+        return {"is_usb_based": usb_radiobutton_value,
+                "usb_source_selected": usb_source_selected,
+                "is_ip_based": ip_radiobutton_value,
+                "is_ipv4": ipv4_radiobutton_value,
+                "is_ipv6": ipv6_radiobutton_value,}
+
+    def set_properties(self, **kargs):
+        """
+        Set properties in the menu.
+
+        :param kargs: :class:`dict` containing properties related to this menu
+        """
+        raise NotImplementedError
 
     def on_video_input_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
@@ -925,6 +958,22 @@ class AudioMenu(AbstractMenu):
                       separator)
         self._make_scrolled_window(vbox)
         return vbox
+
+    def get_properties(self):
+        """
+        Get properties set in the menu.
+
+        :return: :class:`dict` as property_key: value
+        """
+        return {}
+
+    def set_properties(self, **kargs):
+        """
+        Set properties in the menu.
+
+        :param kargs: :class:`dict` containing properties related to this menu
+        """
+        raise NotImplementedError
 
     def on_audio_input_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
@@ -1062,13 +1111,16 @@ class StreamMenu(AbstractMenu):
 
             ipv46_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             ipv46_hbox.set_margin_left(24)
-            ipv4_radiobutton = Gtk.RadioButton("v4")
-            ipv4_radiobutton.set_active(True)
-            ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
-            ipv6_radiobutton = Gtk.RadioButton("v6 (soon)", group=ipv4_radiobutton)
-            ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
-            ipv6_radiobutton.set_sensitive(False)  # DEV
-            _pack_widgets(ipv46_hbox, ipv4_radiobutton, ipv6_radiobutton)
+            self.ipv4_radiobutton = Gtk.RadioButton("v4")
+            self.ipv4_radiobutton.set_active(True)
+            self.ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
+            self.ipv6_radiobutton = Gtk.RadioButton(
+                "v6 (soon)", group=self.ipv4_radiobutton)
+            self.ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
+            self.ipv6_radiobutton.set_sensitive(False)  # DEV
+            _pack_widgets(ipv46_hbox,
+                          self.ipv4_radiobutton,
+                          self.ipv6_radiobutton)
 
             ipv4_entry = self._build_ipv4_entry()
             ipv4_entry.set_margin_left(24)
@@ -1078,7 +1130,7 @@ class StreamMenu(AbstractMenu):
             # ipv6_entry.set_margin_left(24)
 
             self.stream_remote_widgets.extend(
-                (ipv4_radiobutton, ipv6_radiobutton, ipv4_entry))
+                (self.ipv4_radiobutton, self.ipv6_radiobutton, ipv4_entry))
 
             mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             mountpoint_label = Gtk.Label("Mountpoint : ")
@@ -1130,6 +1182,14 @@ class StreamMenu(AbstractMenu):
                     "mount": self.full_mountpoint,
                     "password": self.password}
 
+        def set_properties(self, **kargs):
+            """
+            Set properties in the menu.
+
+            :param kargs: :class:`dict` containing properties related to this menu
+            """
+            raise NotImplementedError
+
         def on_remote_server_toggle(self, widget):
             if widget.get_active():
                 # TODO: hide widgets related to local_server and then show
@@ -1179,7 +1239,7 @@ class StreamMenu(AbstractMenu):
                     self.port, self.full_mountpoint, self.password)
 
             if not self.summary_vbox:
-                self.summary_vbox = self._build_summary_box(element_name)
+                self.summary_vbox = self._build_summary_box(self.element_name)
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
@@ -1329,6 +1389,14 @@ class StoreMenu(AbstractMenu):
             """
             return {"location": self.filepath}
 
+        def set_properties(self, **kargs):
+            """
+            Set properties in the menu.
+
+            :param kargs: :class:`dict` containing properties related to this menu
+            """
+            raise NotImplementedError
+
         def on_folder_selected(self, widget):
             self.folder_selection = widget.get_filename()
             if self.filename:
@@ -1450,6 +1518,22 @@ class SettingsMenu(AbstractMenu):
         """
         return (self.requested_text_overlay,
                 self.h_alignment, self.v_alignment)
+
+    def get_properties(self):
+        """
+        Get properties set in the menu.
+
+        :return: :class:`dict` as property_key: value
+        """
+        return {}
+
+    def set_properties(self, **kargs):
+        """
+        Set properties in the menu.
+
+        :param kargs: :class:`dict` containing properties related to this menu
+        """
+        raise NotImplementedError
 
     def on_settings_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
