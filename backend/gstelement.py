@@ -77,7 +77,11 @@ class GstElement:
         """
         Provide ``GstElement`` interface to GStreamer set_property() method.
         """
-        self.gstelement.set_property(*args)
+        try:
+            self.gstelement.set_property(*args)
+        except TypeError:
+            # ``args`` is not a GStreamer element property.
+            return
 
     def get_property(self, arg):
         """
