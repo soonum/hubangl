@@ -19,6 +19,7 @@
 #
 # Copyright (c) 2016 David Testé
 
+import json
 import pathlib
 import sys
 
@@ -58,9 +59,10 @@ class MainWindow:
 
         self.window = Gtk.Window()
         self.window.set_title("HUBAngl")
-        self.window.connect("delete_event", lambda w, e: Gtk.main_quit())
+        #self.window.connect("delete_event", lambda w, e: Gtk.main_quit())
         self.window.set_position(Gtk.WindowPosition.CENTER)
         self.window.set_icon_from_file(self.images.logo_favicon_path)
+        self.window.connect("delete_event", self.on_mainwindow_close)
 
         if default_app:
             self.current_app = default_app
@@ -98,11 +100,11 @@ class MainWindow:
         )
         self.subitem_save_configuration = self._build_menu_item(
             "Save configuration", self.dropmenu_new,
-            image=Gtk.STOCK_SAVE
+            image=Gtk.STOCK_SAVE, callback=self.on_save_clicked
         )
         self.subitem_load_configuration = self._build_menu_item(
             "Load Configuration", self.dropmenu_new,
-            image=Gtk.STOCK_FILE
+            image=Gtk.STOCK_FILE, callback=self.on_load_clicked
         )
         self.subitem_recent_session = self._build_menu_item(
             "Recent Session", self.dropmenu_new,
@@ -138,7 +140,8 @@ class MainWindow:
                 callback=self.on_stop_clicked
         )
         self._build_separatormenuitem(self.dropmenu_feed)
-        # Inputs______________________________________________________
+
+        # Inputs
         self.subitem_inputs = self._build_menu_item(
             "Inputs", self.dropmenu_feed
         )
@@ -155,7 +158,8 @@ class MainWindow:
                 image=self.images.icons["camera"]["regular_16px"],
                 callback=self.on_video_input_clicked
         )
-        # Outputs_____________________________________________________
+
+        # Outputs
         self.subitem_outputs = self._build_menu_item(
             "Outputs", self.dropmenu_feed
         )
@@ -188,7 +192,8 @@ class MainWindow:
         menu_item = self._build_menu_item("View", menu_bar)
         self.dropmenu_view = Gtk.Menu()
         menu_item.set_submenu(self.dropmenu_view)
-        # Modes_______________________________________________________
+
+        # Modes
         self.subitem_mode = self._build_menu_item(
             "Mode", self.dropmenu_view
         )
@@ -290,6 +295,59 @@ class MainWindow:
         else:
             raise ValueError
 
+    def build_confirm_dialog(self, message_type, message_label,
+                             on_signal=None, callback=None):
+        """
+        Create a :class:`Gtk.MessageDialog` asking user for confirmation.
+
+        :param message_type: :class:`Gtk.MessageType`
+        :param message_label: text displayed to user as :class`str`
+        :param on_signal: Gtk signal as :class:`str`
+        :param callback: callback to connect to ``signal``
+        """
+        confirm_dialog = Gtk.MessageDialog(
+            message_type=message_type, message_format=message_label)
+        confirm_dialog.set_icon_from_file(self.images.logo_favicon_path)
+        confirm_dialog.set_title("Confirmation")
+        confirm_dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+        confirm_dialog.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT)
+        confirm_dialog.set_modal(True)
+        if on_signal and callback:
+            confirm_dialog.connect(on_signal, callback)
+
+        confirm_dialog.run()
+
+    def build_error_dialog(self, message_label, on_signal=None, callback=None):
+        """
+        Create a :class:`Gtk.MessageDialog` to notifiy user that an error
+        occurred.
+
+        :param message_label: text displayed to user as :class`str`
+        :param on_signal: Gtk signal as :class:`str`
+        :param callback: callback to connect to ``signal``
+        """
+        error_dialog = Gtk.MessageDialog(
+            message_type=Gtk.MessageType.ERROR, message_format=message_label)
+        error_dialog.set_icon_from_file(self.images.logo_favicon_path)
+        error_dialog.set_title("Error")
+        error_dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        error_dialog.set_modal(True)
+        if on_signal and callback:
+            error_dialog.connect(on_signal, callback)
+        else:
+            error_dialog.connect("response", self.default_error_callback)
+
+        error_dialog.run()
+
+    def default_error_callback(self, dialog, response_id):
+        """
+        Default callback called when there is no callback provided to
+        :meth:`build_error_dialog`.
+        """
+        if (response_id == Gtk.ResponseType.CLOSE
+                or response_id == Gtk.ResponseType.DELETE_EVENT):
+            dialog.destroy()
+
     def change_application(self, new_application, new_application_container):
         """
         """
@@ -307,6 +365,81 @@ class MainWindow:
         # TODO: improve packing routine
         self.main_vbox.pack_end(self.current_app_container, False, False, 0)
         self.main_vbox.show_all()
+
+    def on_mainwindow_close(self, *args):
+        self.current_app.feed.placeholder_pipeline.set_stop_state()
+        self.current_app.feed.pipeline.set_stop_state()
+        Gtk.main_quit()
+
+    def on_save_clicked(self, widget):
+        file_save_dialog = Gtk.FileChooserDialog(
+                title="Save Session",
+                action=Gtk.FileChooserAction.SAVE,
+                buttons=(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                         Gtk.STOCK_SAVE, Gtk.ResponseType.ACCEPT)
+        )
+        file_save_dialog.set_icon_from_file(self.images.logo_favicon_path)
+        file_save_dialog.set_current_name("Untilted.huba")
+        file_save_dialog.set_do_overwrite_confirmation(True)
+        file_save_dialog.set_modal(True)
+        file_save_dialog.connect("response", self.on_save_response)
+        file_save_dialog.run()
+
+    def on_save_response(self, dialog, response_id):
+        if response_id == Gtk.ResponseType.ACCEPT:
+            file_saved = dialog.get_filename()
+            if ".huba" not in file_saved:
+                file_saved += ".huba"
+            self.session_properties = self.current_app.feed.gather_properties()
+            with open(file_saved, "w") as f:
+                json.dump(self.session_properties, f)
+
+        dialog.destroy()
+
+    def on_load_clicked(self, widget):
+        file_load_dialog = Gtk.FileChooserDialog(
+                title="Load Session",
+                action=Gtk.FileChooserAction.OPEN,
+                buttons=(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                         Gtk.STOCK_OPEN, Gtk.ResponseType.ACCEPT)
+        )
+        file_load_dialog.set_icon_from_file(self.images.logo_favicon_path)
+        file_load_dialog.set_modal(True)
+        file_load_dialog.connect("response", self.on_load_response)
+        file_load_dialog.run()
+
+    def on_load_response(self, dialog, response_id):
+        if response_id == Gtk.ResponseType.ACCEPT:
+            confirmation_message = "Current settings will be overwritten."
+            self.build_confirm_dialog(
+                    Gtk.MessageType.WARNING, confirmation_message,
+                    on_signal="response", callback=self.on_load_confirmation)
+            if self.load_confirmed:
+                file_to_load = dialog.get_filename()
+                with open(file_to_load) as f:
+                    try:
+                        loaded_session = json.load(f)
+                        self.current_app.feed.spread_properties(
+                                **loaded_session)
+                    except ValueError:
+                        message = "An error occurred during file decoding."
+                        self.build_error_dialog(message)
+                    except Exception:
+                        # An error occurred while setting properties
+                        message = "An error occurred during file loading."
+                        self.build_error_dialog(message)
+                        raise
+
+        dialog.destroy()
+
+    def on_load_confirmation(self, dialog, response_id):
+        if response_id == Gtk.ResponseType.ACCEPT:
+            self.load_confirmed = True
+        elif (response_id == Gtk.ResponseType.CANCEL
+              or response_id == Gtk.ResponseType.DELETE_EVENT):
+            self.load_confirmed = False
+
+        dialog.destroy()
 
     def on_play_clicked(self, widget):
         if not self.current_app.feed.controls.play_button.get_sensitive():

@@ -747,14 +747,28 @@ class Pipeline:
             self.add_elements(self.pipeline, (source_gstelement,))
             source_gstelement.link(branch[index][0])
 
+    def remove_input_sources(self):
+        """
+        Remove all input sources from the pipeline.
+        """
+        for sources in (self.audio_sources, self.video_sources):
+            for element in sources:
+                source_gstelement = element.gstelement
+                if self._exist_in_pipeline(source_gstelement):
+                    pad = source_gstelement.get_static_pad("src")
+                    parent = self.get_connected_element(pad)
+                    if parent:
+                        source_gstelement.gstelement.unlink(parent)
+                    self.pipeline.remove(source_gstelement.gstelement)
+
     def set_output_sink(self):
         """
         Add a streaming/storing sink to the pipeline.
         """
         for sinks_dict in (self.store_sinks, self.stream_sinks):
-            for stream_type, sinks in sinks_dict.items():
+            for feed_type, sinks in sinks_dict.items():
                 for sink in sinks:
-                    parent = self._get_streamstore_parent(sink, stream_type)
+                    parent = self._get_streamstore_parent(sink, feed_type)
                     sink_gstelement = sink.gstelement
                     if self._exist_in_pipeline(sink_gstelement):
                         # The element has been added since the pipeline was
@@ -771,17 +785,33 @@ class Pipeline:
                     parent.link(sink_gstelement)
                     # FIXME: yet you can only have one filesink per stream
                     # since tee_endpoint are not used to connect multiple
-                    # filesink to a unique stream_type.
+                    # filesink to a unique feed_type.
                     break
 
-    def _get_streamstore_parent(self, ioelement, stream_type):
+    def remove_output_sinks(self):
+        """
+        Remove all output sinks from the pipeline.
+        """
+        for streamstore_elements in (self.stream_sinks, self.store_sinks):
+            for feed_type, sinks in streamstore_elements.items():
+                for sink in sinks:
+                    sink_gstelement = sink.gstelement
+                    parent = self._get_streamstore_parent(sink, feed_type)
+                    child = self.get_connected_element(parent.get_static_pad("src"))
+                    if child == sink_gstelement.gstelement:
+                        parent.gstelement.unlink(sink_gstelement.gstelement)
+                    if self._exist_in_pipeline(sink.gstelement):
+                        self.pipeline.remove(sink_gstelement.gstelement)
+                streamstore_elements[feed_type] = []
+
+    def _get_streamstore_parent(self, ioelement, feed_type):
         """
         Get parent element for a :class:`~backend.ioelements.StoreElement` or
-        :class:`~backend.ioelements.StreamElement` depending on ``stream_type``.
+        :class:`~backend.ioelements.StreamElement` depending on ``feed_type``.
 
         :param ioelement: :class:`~backend.ioelements.StoreElement` or
             :class:`~backend.ioelements.StreamElement`
-        :param stream_type: could be either ``audiovideo``, ``audio`` or
+        :param feed_type: could be either ``audiovideo``, ``audio`` or
             ``video`` as :class:`str`
 
         :return: :class:`~backend.gstelement.GstElement` to connect to.
@@ -797,11 +827,11 @@ class Pipeline:
         video_branch = (self.video_process_branch3, self.video_process_branch4)
         audiovideo_branch = (self.av_process_branch4, self.av_process_branch5)
 
-        if stream_type == AUDIO_VIDEO_STREAM:
+        if feed_type == AUDIO_VIDEO_STREAM:
             return audiovideo_branch[index][-2]  # FIXME: index
-        elif stream_type == AUDIO_ONLY_STREAM:
+        elif feed_type == AUDIO_ONLY_STREAM:
             return audio_branch[index][-1]  # FIXME: index
-        elif stream_type == VIDEO_ONLY_STREAM:
+        elif feed_type == VIDEO_ONLY_STREAM:
             return video_branch[index][-1]  # FIXME: index
         else:
             raise ValueError
@@ -848,14 +878,14 @@ class Pipeline:
 
         return tuple(video_sources)
 
-    def create_stream_sink(self, element_name, stream_type, ip, port, mount,
+    def create_stream_sink(self, element_name, feed_type, ip, port, mount,
                            password=None):
         """
         Create all output GStreamer elements dedicated to streaming, based on
         current definition of process pipeline.
 
         :param element_name: name that is given to store object as :class:`str`
-        :param stream_type: could be either ``audiovideo``, ``audio`` or
+        :param feed_type: could be either ``audiovideo``, ``audio`` or
             ``video`` as :class:`str`
         :param ip: address of Icecast server as :class:`str`
         :param port: port as :class:`int` that Icecast server is listening on.
@@ -866,34 +896,34 @@ class Pipeline:
         :return: :class:`~backend.ioelements.StreamElement`
         """
         sink = ioelements.StreamElement(element_name, ip, port, mount, password)
-        self._append_sink(self.stream_sinks, sink, stream_type)
+        self._append_sink(self.stream_sinks, sink, feed_type)
         return sink
 
-    def create_store_sink(self, stream_type, filepath, element_name):
+    def create_store_sink(self, feed_type, filepath, element_name):
         """
         Create a filesink and add it to store_sinks dict.
 
         :param element_name: name that is given to store object as :class:`str`
-        :param stream_type: could be either ``audiovideo``, ``audio`` or
+        :param feed_type: could be either ``audiovideo``, ``audio`` or
             ``video`` as :class:`str`
         :param filepath: full filepath as :class:`str`
 
         :return: :class:`~backend.ioelements.StoreElement`
         """
         sink = ioelements.StoreElement(element_name, filepath)
-        self._append_sink(self.store_sinks, sink, stream_type)
+        self._append_sink(self.store_sinks, sink, feed_type)
         return sink
 
-    def _append_sink(self, sink_dict, sink_element, stream_type):
+    def _append_sink(self, sink_dict, sink_element, feed_type):
         """
-        Append ``sink_element`` in ``sink_dict`` depending on ``stream_type``.
+        Append ``sink_element`` in ``sink_dict`` depending on ``feed_type``.
 
         :param sink_dict: :class:`dict` containing sinks elements
         :param sink_element: subclass of :class:`~backend.ioelements.OutputElement`
-        :param stream_type: could be either ``audiovideo``, ``audio`` or
+        :param feed_type: could be either ``audiovideo``, ``audio`` or
             ``video`` as :class:`str`
         """
-        element_list = sink_dict.get(stream_type)
+        element_list = sink_dict.get(feed_type)
         element_list.append(sink_element)
 
     def create_audio_process(self,):

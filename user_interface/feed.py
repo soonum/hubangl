@@ -18,6 +18,7 @@
 #
 # Copyright (c) 2016 David Testé
 
+import abc
 import os
 import sys
 import time
@@ -205,6 +206,68 @@ class NewFeed:
             imagesink.set_property('force-aspect-ratio', True)
             imagesink.set_window_handle(self.xid)
 
+    def gather_properties(self):
+        """
+        """
+        session_properties = {}
+        session_properties["video"] = self.video_menu.get_properties()
+        session_properties["audio"] = self.audio_menu.get_properties()
+        session_properties["settings"] = self.settings_menu.get_properties()
+
+        for index, stream_section in enumerate(self.stream_menu.feeds):
+            key = "stream_" + str(index)
+            session_properties[key] = stream_section.get_properties()
+
+        for index, store_section in enumerate(self.store_menu.feeds):
+            key = "store_" + str(index)
+            session_properties[key] = store_section.get_properties()
+
+        return session_properties
+
+    def spread_properties(self, **kargs):
+        """
+        """
+        self.controls.on_stop_clicked(self.controls.stop_button)
+        self.placeholder_pipeline.set_play_state()
+
+        self.remove_all_inputs()
+        self.remove_all_outputs()
+
+        video = kargs.pop("video")
+        audio = kargs.pop("audio")
+        settings = kargs.pop("settings")
+
+        self.video_menu.set_properties(**video)
+        self.audio_menu.set_properties(**audio)
+        self.settings_menu.set_properties(**settings)
+
+        for key, sub_dict in kargs.items():
+            if "stream_" in key:
+                self.stream_menu.on_add_clicked(
+                    self.stream_menu.stream_add_button)
+                self.stream_menu.feeds[-1].set_properties(**sub_dict)
+            elif "store_" in key:
+                self.store_menu.on_add_clicked(
+                    self.store_menu.store_add_button)
+                self.store_menu.feeds[-1].set_properties(**sub_dict)
+
+    def remove_all_inputs(self):
+        """
+        Remove all inputs created in video and audio menus.
+        """
+        self.pipeline.remove_input_sources()
+
+    def remove_all_outputs(self):
+        """
+        Remove all outputs created in stream and store menus.
+        """
+        self.pipeline.remove_output_sinks()
+
+        for menu in (self.stream_menu, self.store_menu):
+            for section in menu.feeds:
+                menu.main_vbox.remove(section.summary_vbox)
+            menu.feeds = []
+
     def on_message(self, bus, message):
         # Getting the RMS audio level value:
         s = Gst.Message.get_structure(message)
@@ -220,7 +283,7 @@ class NewFeed:
             self.streampipe.set_state(Gst.State.NULL)
         elif t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
-            print ('%s' % err, debug)
+            print ('%s' % err, debug)  # DEBUG
             # Watching for feed loss during streaming:
             #if '(651)' not in debug:
             #    # The error is not a socket error.
@@ -378,8 +441,6 @@ class ControlBar:
             widget.show_all()
 
     def on_play_clicked(self, widget):
-        if not self._pipeline.is_preview_state:
-            return
 
         self.stop_button.set_icon_widget(self.images.get_regular_icon("stop"))
         self.stop_button.set_sensitive(True)
@@ -416,13 +477,16 @@ class ControlBar:
         # neither remove the current one. As a consequence, once a feed type
         # is chosen, after user click play this not possible (yet) to change
         # that type. A new output element must be created via `Add` button.
-        for feed_streamed in self.stream_menu.feed_streamed:
+        for feed_streamed in self.stream_menu.feeds:
+            feed_streamed.build_full_mountpoint()
             self._pipeline.update_gstelement_properties(
                 feed_streamed.streamsink, **feed_streamed.get_properties())
             feed_streamed.full_filename_label.set_label(
                 feed_streamed.element_name)
 
-        for feed_recorded in self.store_menu.feed_recorded:
+        for feed_recorded in self.store_menu.feeds:
+            feed_recorded.create_unique_filename()
+            feed_recorded.build_filepath()
             self._pipeline.update_gstelement_properties(
                 feed_recorded.filesink, **feed_recorded.get_properties())
             feed_recorded.full_filename_label.set_label(
@@ -524,7 +588,7 @@ class AbstractMenu:
         self.scrolled_window.set_policy(Gtk.PolicyType.NEVER,
                                         Gtk.PolicyType.AUTOMATIC)
 
-    def _build_confirm_changes_button(self, label=None, signal="clicked",
+    def _build_confirm_changes_button(self, label=None, on_signal="clicked",
                                       callback=None):
         """
         Build a confirmation button used in every side bar menus.
@@ -537,11 +601,11 @@ class AbstractMenu:
         button.set_sensitive(False)
         button.set_margin_top(12)
         if callback:
-            button.connect(signal, callback)
+            button.connect(on_signal, callback)
 
         return button
 
-    def _build_add_button(self, label=None, signal="clicked",
+    def _build_add_button(self, label=None, on_signal="clicked",
                           callback=None):
         """
         Build an add button usable in side bar menu.
@@ -553,11 +617,11 @@ class AbstractMenu:
         button.set_margin_top(12)
         button.set_size_request(250, 20)
         if callback:
-            button.connect(signal, callback)
+            button.connect(on_signal, callback)
 
         return button
 
-    def _build_ipv4_entry(self):
+    def _build_ipv4_entries(self):
         """
         """
         self.ipv4_field1 = Gtk.Entry()
@@ -587,11 +651,26 @@ class AbstractMenu:
                       self.port_entry)
         return hbox
 
+    @abc.abstractmethod
+    def get_properties(self):
+        """
+        Get properties set in the menu.
+
+        :return: :class:`dict` as property_key: value
+        """
+
+    @abc.abstractmethod
+    def set_properties(self):
+        """
+        Set properties in the menu.
+
+        :param kargs: :class:`dict` containing properties related to this menu
+        """
+
     def _build_ipv6_entry(self):
         """
         """
-        # Has to be implemented
-        pass
+        raise NotImplementedError
 
     def get_ipv4_address(self):
         """
@@ -612,6 +691,26 @@ class AbstractMenu:
                 ip_address = ".".join(ip_fields_values)
                 port = int(port_value)
                 return ip_address, port
+
+    def set_ip_fields(self, ip_entries, ip_address, port):
+        """
+        Set entries relative to an IP address to ``ip_address`` and ``port``.
+
+        :param ip_entries: container containing entries
+        :param ip_address: full ip address as :class:`str`
+        :param port: port to connect to as :class:`int`
+        """
+        if "." in ip_address:
+            # This is an IPv4 address
+            ip_fields_values = ip_address.split(".")
+            for index, field in enumerate((self.ipv4_field1, self.ipv4_field2,
+                                           self.ipv4_field3, self.ipv4_field4)):
+                field.set_text(ip_fields_values[index])
+            self.port_entry.set_text(str(port))
+        elif ":" in ip_address:
+            # This is an IPv6 address
+            ip_fields_values = ip_address.split(":")
+            # TODO: populate this case once IPv6 handling is implemented.
 
     def _build_format_section(self, radio_button_label, format_labels,
                               callback_radio=None, callback_combo=None,
@@ -644,10 +743,14 @@ class AbstractMenu:
     def _build_format_group(self):
         """
         """
+        self.audio_formats = (".ogg",)
+        self.video_formats = (".mkv",)
+        self.audiovideo_formats = (".webm",)
+
         (self.audiovideo_radiobutton,
          self._audiovideo_format_hbox,
          self._audiovideo_format_combobox) = self._build_format_section(
-             "Audio/Video", (".webm",),
+             "Audio/Video", self.audiovideo_formats,
              callback_radio=self.on_format_radiobutton_toggle)
         self.audiovideo_radiobutton.set_active(True)
 
@@ -656,14 +759,14 @@ class AbstractMenu:
         (self.video_radiobutton,
          self._video_format_hbox,
          self._video_format_combobox) = self._build_format_section(
-             "Video Only", (".mkv",),
+             "Video Only", self.video_formats,
              callback_radio=self.on_format_radiobutton_toggle,
              radio_group=self.audiovideo_radiobutton)
 
         (self.audio_radiobutton,
          self._audio_format_hbox,
          self._audio_format_combobox) = self._build_format_section(
-             "Audio Only", (".ogg",),
+             "Audio Only", self.audio_formats,
              callback_radio=self.on_format_radiobutton_toggle,
              radio_group=self.audiovideo_radiobutton)
 
@@ -727,6 +830,20 @@ class AbstractMenu:
             if combobox.get_parent() == hbox:
                 return combobox.get_active_text()
 
+    def _set_format_extension(self, format_selected):
+        """
+        Set format extension for the combo box currently displayed.
+        """
+        combobox_formats = {
+            self._audiovideo_format_combobox: self.audiovideo_formats,
+            self._video_format_combobox: self.video_formats,
+            self._audio_format_combobox: self.audio_formats
+        }
+        hbox = self._get_format_hbox()
+        for combobox, formats in combobox_formats.items():
+            if combobox.get_parent() == hbox:
+                self.set_active_text(combobox, formats, format_selected)
+
     def _change_output_format(self, widget):
         """
         """
@@ -748,6 +865,20 @@ class AbstractMenu:
         self.vbox.reorder_child(child, -2)
         self.vbox.show_all()
 
+    def set_active_text(self, comboboxtext_widget, text_list, text):
+        """
+        Set active text of ``comboboxtext_widget`` to ``text`` if ``text`` is
+        in ``text_list``.
+
+        :param comboboxtext_widget: :class:`Gtk.ComboBoxText`
+        :param text_list: list of string appened to ``comboboxtext_widget``
+        :param text: string to set active as :class:`str`
+        """
+        for index, text_element in enumerate(text_list):
+            if text == text_element:
+                comboboxtext_widget.set_active(index)
+                break
+
     def on_format_radiobutton_toggle(self, widget):
         raise NotImplementedError
 
@@ -765,6 +896,7 @@ class VideoMenu(AbstractMenu):
         super().__init__(pipeline, menu_revealer, placeholder_pipeline)
         self.video_usb_widgets = []
         self.video_ip_widgets = []
+        self.sources_list = []
         self.video_vbox = self._build_video_vbox()
 
         self.current_video_source = None
@@ -785,7 +917,8 @@ class VideoMenu(AbstractMenu):
         else:
             for source in self.pipeline.video_sources:
                 self.usb_sources.append_text(source.description)
-        self.usb_sources.connect("changed", self.on_comboxboxtext_change)
+                self.sources_list.append(source.description)
+        self.usb_sources.connect("changed", self.on_usb_input_change)
         self.usb_sources.set_margin_left(24)
         self.video_usb_widgets.append(self.usb_sources)
 
@@ -807,15 +940,15 @@ class VideoMenu(AbstractMenu):
         self.ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
         _pack_widgets(ipv46_hbox, self.ipv4_radiobutton, self.ipv6_radiobutton)
 
-        ipv4_entry = self._build_ipv4_entry()
-        ipv4_entry.set_margin_left(24)
+        self.ipv4_entries = self._build_ipv4_entries()
+        self.ipv4_entries.set_margin_left(24)
 
         # TODO: Implement ipv6_entry
         # ipv6_entry = self._build_ipv6_entry()
         # ipv6_entry.set_margin_left(24)
 
         self.video_ip_widgets.extend(
-            (self.ipv4_radiobutton, self.ipv6_radiobutton, ipv4_entry))
+            (self.ipv4_radiobutton, self.ipv6_radiobutton, self.ipv4_entries))
         self._make_widget_unavailable(*self.video_ip_widgets)
 
         self.video_confirm_button = self._build_confirm_changes_button(
@@ -832,7 +965,7 @@ class VideoMenu(AbstractMenu):
                       self.usb_sources,
                       self.ip_radiobutton,
                       ipv46_hbox,
-                      ipv4_entry,
+                      self.ipv4_entries,
                       self.video_confirm_button,
                       separator)
         self._make_scrolled_window(vbox)
@@ -844,19 +977,18 @@ class VideoMenu(AbstractMenu):
 
         :return: :class:`dict` as property_key: value
         """
-        usb_radiobutton_value = self.usb_radiobutton.is_active()
-        usb_source_selected = self.usb_source.get_active_text()
+        usb_radiobutton_value = self.usb_radiobutton.get_active()
+        usb_source_selected = self.usb_sources.get_active_text()
 
-        ip_radiobutton_value = self.ip_radiobutton.is_active()
-        ipv4_radiobutton_value = self.ipv4_radiobutton.is_active()
-        ipv6_radiobutton_value = self.ipv6_radiobutton.is_active()
-        # TODO: add IP-related entries fields
+        ip_radiobutton_value = self.ip_radiobutton.get_active()
+        ipv4_radiobutton_value = self.ipv4_radiobutton.get_active()
+        ipv6_radiobutton_value = self.ipv6_radiobutton.get_active()
 
-        return {"is_usb_based": usb_radiobutton_value,
+        return {"usb_radiobutton": usb_radiobutton_value,
                 "usb_source_selected": usb_source_selected,
-                "is_ip_based": ip_radiobutton_value,
-                "is_ipv4": ipv4_radiobutton_value,
-                "is_ipv6": ipv6_radiobutton_value,}
+                "ip_radiobutton": ip_radiobutton_value,
+                "ipv4_radiobutton": ipv4_radiobutton_value,
+                "ipv6_radiobutton": ipv6_radiobutton_value, }
 
     def set_properties(self, **kargs):
         """
@@ -864,7 +996,27 @@ class VideoMenu(AbstractMenu):
 
         :param kargs: :class:`dict` containing properties related to this menu
         """
-        raise NotImplementedError
+        usb_radiobutton_value = kargs.get("usb_radiobutton")
+        usb_source_selected = kargs.get("usb_source_selected")
+        ip_radiobutton_value = kargs.get("ip_radiobutton")
+        ipv4_radiobutton_value = kargs.get("ipv4_radiobutton")
+        ipv6_radiobutton_value = kargs.get("ipv6_radiobutton")
+
+        self.usb_radiobutton.set_active(usb_radiobutton_value)
+        self.requested_video_source = None
+        self.current_video_source = None
+        self.set_active_text(
+            self.usb_sources, self.sources_list, usb_source_selected)
+        self.on_usb_input_change(self.usb_sources)
+
+        self.ip_radiobutton.set_active(ip_radiobutton_value)
+        self.ipv4_radiobutton.set_active(ipv4_radiobutton_value)
+        self.ipv6_radiobutton.set_active(ipv6_radiobutton_value)
+
+        # TODO: add an OR operator with ip_source_selected once ip based
+        #       source is implemented
+        if usb_source_selected:
+            self.on_confirm_clicked(self.video_confirm_button)
 
     def on_video_input_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
@@ -878,7 +1030,7 @@ class VideoMenu(AbstractMenu):
             self._make_widget_available(*self.video_ip_widgets)
             self._make_widget_unavailable(*self.video_usb_widgets)
 
-    def on_comboxboxtext_change(self, widget):
+    def on_usb_input_change(self, widget):
         active_text = widget.get_active_text()
         if active_text:
             self.video_confirm_button.set_sensitive(True)
@@ -911,6 +1063,8 @@ class AudioMenu(AbstractMenu):
     """
     def __init__(self, pipeline, menu_revealer, placeholder_pipeline=None):
         super().__init__(pipeline, menu_revealer, placeholder_pipeline)
+        self.sources_list = []
+        self.sinks_list = []
         self.audio_vbox = self._build_audio_vbox()
 
         self.current_audio_source = None
@@ -922,24 +1076,27 @@ class AudioMenu(AbstractMenu):
         title = Gtk.Label("Audio Source")
         title.set_margin_top(6)
 
-        mic_sources = Gtk.ComboBoxText()
+        self.mic_sources = Gtk.ComboBoxText()
         for source in self.pipeline.audio_sources:
-            mic_sources.append_text(source.description)
-        mic_sources.connect("changed", self.on_input_change)
-        mic_sources.set_margin_left(24)
+            self.mic_sources.append_text(source.description)
+            self.sources_list.append(source.description)
+        self.mic_sources.connect("changed", self.on_input_change)
+        self.mic_sources.set_margin_left(24)
 
-        mute_checkbutton = Gtk.CheckButton("Mute")
-        mute_checkbutton.connect("toggled", self.on_mute_toggle)
+        self.mute_checkbutton = Gtk.CheckButton("Mute (soon)")
+        self.mute_checkbutton.connect("toggled", self.on_mute_toggle)
+        self.mute_checkbutton.set_sensitive(False)
 
-        output_sinks = Gtk.ComboBoxText()
+        self.output_sinks = Gtk.ComboBoxText()
         index = 0
         for description, device in self.pipeline.speaker_sinks.items():
-            output_sinks.append_text(description)
+            self.output_sinks.append_text(description)
+            self.sinks_list.append(description)
             if device == self.pipeline.speaker_sink.get_property("device"):
-                output_sinks.set_active(index)
+                self.output_sinks.set_active(index)
             index += 1
-        output_sinks.connect("changed", self.on_output_change)
-        output_sinks.set_margin_left(24)
+        self.output_sinks.connect("changed", self.on_output_change)
+        self.output_sinks.set_margin_left(24)
 
         self.audio_confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
@@ -951,9 +1108,9 @@ class AudioMenu(AbstractMenu):
         vbox.set_margin_right(6)
         _pack_widgets(vbox,
                       title,
-                      mic_sources,
-                      mute_checkbutton,
-                      output_sinks,
+                      self.mic_sources,
+                      self.mute_checkbutton,
+                      self.output_sinks,
                       self.audio_confirm_button,
                       separator)
         self._make_scrolled_window(vbox)
@@ -965,7 +1122,13 @@ class AudioMenu(AbstractMenu):
 
         :return: :class:`dict` as property_key: value
         """
-        return {}
+        audio_source_selected = self.mic_sources.get_active_text()
+        audio_sink_selected = self.output_sinks.get_active_text()
+        source_muted = self.mute_checkbutton.get_active()
+
+        return {"audio_source_selected": audio_source_selected,
+                "audio_sink_selected": audio_sink_selected,
+                "source_muted": source_muted}
 
     def set_properties(self, **kargs):
         """
@@ -973,7 +1136,28 @@ class AudioMenu(AbstractMenu):
 
         :param kargs: :class:`dict` containing properties related to this menu
         """
-        raise NotImplementedError
+        audio_source_selected = kargs.get("audio_source_selected")
+        audio_sink_selected = kargs.get("audio_sink_selected")
+        source_muted = kargs.get("source_muted")
+
+        self.requested_audio_source = None
+        self.current_audio_source = None
+        self.set_active_text(
+            self.mic_sources, self.sources_list, audio_source_selected)
+        self.on_input_change(self.mic_sources)
+        self.mute_checkbutton.set_active(source_muted)
+
+        # TODO: Handle user choice for output audio sink, currently this
+        # implementation overrides user's choice by setting automatically
+        # default speaker output.
+        index = 0
+        for description, device in self.pipeline.speaker_sinks.items():
+            if device == self.pipeline.speaker_sink.get_property("device"):
+                self.output_sinks.set_active(index)
+            index += 1
+
+        if audio_source_selected:
+            self.on_confirm_clicked(self.audio_confirm_button)
 
     def on_audio_input_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
@@ -1016,9 +1200,9 @@ class StreamMenu(AbstractMenu):
     def __init__(self, pipeline, menu_revealer):
         super().__init__(pipeline, menu_revealer)
         self.settings_revealer = self._build_revealer()
-        self.stream_vbox = self._build_stream_vbox()
+        self.main_vbox = self._build_stream_vbox()
 
-        self.feed_streamed = []
+        self.feeds = []
 
     def _build_stream_vbox(self):
         title = Gtk.Label("Streaming server")
@@ -1046,8 +1230,8 @@ class StreamMenu(AbstractMenu):
     def on_add_clicked(self, widget):
         stream_element = self.StreamSection(
             self.pipeline, self.settings_revealer,
-            self.stream_vbox, len(self.feed_streamed) + 1)
-        self.feed_streamed.append(stream_element)
+            self.main_vbox, len(self.feeds) + 1)
+        self.feeds.append(stream_element)
         self._manage_revealer(self.settings_revealer, stream_element.vbox)
 
     class StreamSection(AbstractMenu):
@@ -1122,29 +1306,31 @@ class StreamMenu(AbstractMenu):
                           self.ipv4_radiobutton,
                           self.ipv6_radiobutton)
 
-            ipv4_entry = self._build_ipv4_entry()
-            ipv4_entry.set_margin_left(24)
+            self.ipv4_entries = self._build_ipv4_entries()
+            self.ipv4_entries.set_margin_left(24)
 
             # TODO: Implement ipv6_entry
             # ipv6_entry = self._build_ipv6_entry()
             # ipv6_entry.set_margin_left(24)
 
-            self.stream_remote_widgets.extend(
-                (self.ipv4_radiobutton, self.ipv6_radiobutton, ipv4_entry))
+            self.stream_remote_widgets.extend((self.ipv4_radiobutton,
+                                               self.ipv6_radiobutton,
+                                               self.ipv4_entries))
 
             mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             mountpoint_label = Gtk.Label("Mountpoint : ")
-            mountpoint_entry = Gtk.Entry()
-            mountpoint_entry.connect("changed", self.on_mountpoint_change)
-            _pack_widgets(mountpoint_hbox, mountpoint_label, mountpoint_entry)
+            self.mountpoint_entry = Gtk.Entry()
+            self.mountpoint_entry.connect("changed", self.on_mountpoint_change)
+            _pack_widgets(
+                mountpoint_hbox, mountpoint_label, self.mountpoint_entry)
 
             password_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             password_label = Gtk.Label("Password :   ")
-            password_entry = Gtk.Entry()
-            password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
-            password_entry.set_visibility(False)
-            password_entry.connect("changed", self.on_password_change)
-            _pack_widgets(password_hbox, password_label, password_entry)
+            self.password_entry = Gtk.Entry()
+            self.password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+            self.password_entry.set_visibility(False)
+            self.password_entry.connect("changed", self.on_password_change)
+            _pack_widgets(password_hbox, password_label, self.password_entry)
 
             radiobutton_hbox = self._build_format_group()
             # FIXME: .mkv format is not supported by shout2send Gst element.
@@ -1162,13 +1348,20 @@ class StreamMenu(AbstractMenu):
             _pack_widgets(vbox,
                           server_type_hbox,
                           ipv46_hbox,
-                          ipv4_entry,
+                          self.ipv4_entries,
                           mountpoint_hbox,
                           password_hbox,
                           radiobutton_hbox,
                           self._audiovideo_format_hbox,
                           self.stream_confirm_button,)
             return vbox
+
+        def build_full_mountpoint(self):
+            """
+            Build mountpoint used by :class:`~backend.ioelements.StreamElement`
+            based on mountpoint entry and extension choosen. 
+            """
+            self.full_mountpoint = self.mountpoint + self._get_format_extension()
 
         def get_properties(self):
             """
@@ -1177,10 +1370,30 @@ class StreamMenu(AbstractMenu):
 
             :return: :class:`dict` as property_key: value
             """
-            return {"ip": self.ip_address,
-                    "mount": self.port,
-                    "mount": self.full_mountpoint,
-                    "password": self.password}
+            remote_radiobutton_value = self.remote_server_radiobutton.get_active()
+            local_radiobutton_value = self.local_server_radiobutton.get_active()
+
+            ipv4_radiobutton_value = self.ipv4_radiobutton.get_active()
+            ipv6_radiobutton_value = self.ipv6_radiobutton.get_active()
+
+            audiovideo_radiobutton_value = self.audiovideo_radiobutton.get_active()
+            video_radiobutton_value = self.video_radiobutton.get_active()
+            audio_radiobutton_value = self.audio_radiobutton.get_active()
+            feed_format = self._get_format_extension()
+
+            return {"remote_radiobutton": remote_radiobutton_value,
+                    "local_radiobutton": local_radiobutton_value,
+                    "ipv4_radiobutton": ipv4_radiobutton_value,
+                    "ipv6_radiobutton": ipv6_radiobutton_value,
+                    "ip_address": self.ip_address,
+                    "port": self.port,
+                    "mountpoint": self.mountpoint,
+                    "mount": self.full_mountpoint,  # Used only by StremElement
+                    "password": self.password,
+                    "audiovideo_radiobutton": audiovideo_radiobutton_value,
+                    "video_radiobutton": video_radiobutton_value,
+                    "audio_radiobutton": audio_radiobutton_value,
+                    "feed_format": feed_format}
 
         def set_properties(self, **kargs):
             """
@@ -1188,7 +1401,35 @@ class StreamMenu(AbstractMenu):
 
             :param kargs: :class:`dict` containing properties related to this menu
             """
-            raise NotImplementedError
+            remote_radiobutton_value = kargs.get("remote_radiobutton")
+            local_radiobutton_value = kargs.get("local_radiobutton")
+            ipv4_radiobutton_value = kargs.get("ipv4_radiobutton")
+            ipv6_radiobutton_value = kargs.get("ipv6_radiobutton")
+            ip_address_value = kargs.get("ip_address")
+            port_value = kargs.get("port")
+            mountpoint_value = kargs.get("mountpoint")
+            password_value = kargs.get("password")
+            audiovideo_radiobutton_value = kargs.get("audiovideo_radiobutton")
+            video_radiobutton_value = kargs.get("video_radiobutton")
+            audio_radiobutton_value = kargs.get("audio_radiobutton")
+            feed_format_value = kargs.get("feed_format")
+
+            self.remote_server_radiobutton.set_active(remote_radiobutton_value)
+            self.local_server_radiobutton.set_active(local_radiobutton_value)
+            self.ipv4_radiobutton.set_active(ipv4_radiobutton_value)
+            self.ipv6_radiobutton.set_active(ipv6_radiobutton_value)
+
+            self.set_ip_fields(
+                self.ipv4_entries, ip_address_value, port_value)
+            self.mountpoint_entry.set_text(mountpoint_value)
+            self.password_entry.set_text(password_value)
+
+            self.audiovideo_radiobutton.set_active(audiovideo_radiobutton_value)
+            self.video_radiobutton.set_active(video_radiobutton_value)
+            self.audio_radiobutton.set_active(audio_radiobutton_value)
+            self._set_format_extension(feed_format_value)
+
+            self.on_confirm_clicked(self.stream_confirm_button)
 
         def on_remote_server_toggle(self, widget):
             if widget.get_active():
@@ -1203,7 +1444,6 @@ class StreamMenu(AbstractMenu):
                 pass
 
         def on_mountpoint_change(self, widget):
-            #self.get_ipv4_address()  # DEBUG
             text = widget.get_text()
             if text != self.mountpoint:
                 self.mountpoint = text
@@ -1232,7 +1472,7 @@ class StreamMenu(AbstractMenu):
                 return
 
             self.element_name = self.mountpoint.split("/")[-1]
-            self.full_mountpoint = self.mountpoint + self._get_format_extension()
+            self.build_full_mountpoint()
             if not self.streamsink:
                 self.streamsink = self.pipeline.create_stream_sink(
                     self.element_name, self.current_stream_type, self.ip_address,
@@ -1261,9 +1501,9 @@ class StoreMenu(AbstractMenu):
     def __init__(self, pipeline, menu_revealer):
         super().__init__(pipeline, menu_revealer)
         self.settings_revealer = self._build_revealer()
-        self.store_vbox = self._build_store_vbox()
+        self.main_vbox = self._build_store_vbox()
 
-        self.feed_recorded = []
+        self.feeds = []
 
     def _build_store_vbox(self):
         title = Gtk.Label("Storing")
@@ -1291,8 +1531,8 @@ class StoreMenu(AbstractMenu):
     def on_add_clicked(self, widget):
         store_element = self.StoreSection(
             self.pipeline, self.settings_revealer,
-            self.store_vbox, len(self.feed_recorded) + 1)
-        self.feed_recorded.append(store_element)
+            self.main_vbox, len(self.feeds) + 1)
+        self.feeds.append(store_element)
         self._manage_revealer(self.settings_revealer, store_element.vbox)
 
     class StoreSection(AbstractMenu):
@@ -1329,20 +1569,20 @@ class StoreMenu(AbstractMenu):
         def _build_newfile_vbox(self):
             """
             """
-            folder_chooser_button = Gtk.FileChooserButton(
+            self.folder_chooser_button = Gtk.FileChooserButton(
                 action=Gtk.FileChooserAction.SELECT_FOLDER)
-            folder_chooser_button.set_title("Select a folder")
-            folder_chooser_button.connect("file-set", self.on_folder_selected)
-            folder_chooser_button.set_margin_top(6)
+            self.folder_chooser_button.set_title("Select a folder")
+            self.folder_chooser_button.connect("file-set", self.on_folder_selected)
+            self.folder_chooser_button.set_margin_top(6)
 
             name_label = Gtk.Label("Name ")
-            name_entry = Gtk.Entry()
-            name_entry.set_width_chars(25)
-            name_entry.set_input_purpose(Gtk.InputPurpose.ALPHA)
-            name_entry.set_placeholder_text("Type a filename")
-            name_entry.connect("changed", self.on_entry_change)
+            self.name_entry = Gtk.Entry()
+            self.name_entry.set_width_chars(25)
+            self.name_entry.set_input_purpose(Gtk.InputPurpose.ALPHA)
+            self.name_entry.set_placeholder_text("Type a filename")
+            self.name_entry.connect("changed", self.on_entry_change)
             name_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            _pack_widgets(name_hbox, name_label, name_entry)
+            _pack_widgets(name_hbox, name_label, self.name_entry)
 
             self.automatic_naming_checkbutton = Gtk.CheckButton()
             self.automatic_naming_checkbutton.set_active(True)
@@ -1362,7 +1602,7 @@ class StoreMenu(AbstractMenu):
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             _pack_widgets(vbox,
-                          folder_chooser_button,
+                          self.folder_chooser_button,
                           name_hbox,
                           automatic_naming_hbox,
                           radiobutton_hbox,
@@ -1380,6 +1620,22 @@ class StoreMenu(AbstractMenu):
                 return time.strftime("_%Y%m%d__%H-%M-%S", time.gmtime())
             return ""
 
+        def create_unique_filename(self):
+            """
+            Create a unique filename.
+            """
+            self.full_filename = (self.filename
+                                  + self._get_formatted_timestamp()
+                                  + self._get_format_extension())
+
+        def build_filepath(self):
+            """
+            Set filepath that is used by
+            :class:`~backend.ioelements.StoreElement`
+            """
+            self.filepath = os.path.join(
+                self.folder_selection, self.full_filename)
+
         def get_properties(self):
             """
             Get Gstreamer properties of
@@ -1387,7 +1643,23 @@ class StoreMenu(AbstractMenu):
 
             :return: :class:`dict` as property_key: value
             """
-            return {"location": self.filepath}
+            folder_selected = self.folder_chooser_button.get_filename()
+            name_entry_value = self.name_entry.get_text()
+            automatic_naming_value = self.automatic_naming_checkbutton.get_active()
+
+            audiovideo_radiobutton_value = self.audiovideo_radiobutton.get_active()
+            video_radiobutton_value = self.video_radiobutton.get_active()
+            audio_radiobutton_value = self.audio_radiobutton.get_active()
+            feed_format = self._get_format_extension()
+
+            return {"folder_selection": folder_selected,
+                    "name_entry": name_entry_value,
+                    "automatic_naming_checkbutton": automatic_naming_value,
+                    "location": self.filepath,
+                    "audiovideo_radiobutton": audiovideo_radiobutton_value,
+                    "video_radiobutton": video_radiobutton_value,
+                    "audio_radiobutton": audio_radiobutton_value,
+                    "feed_format": feed_format}
 
         def set_properties(self, **kargs):
             """
@@ -1395,7 +1667,25 @@ class StoreMenu(AbstractMenu):
 
             :param kargs: :class:`dict` containing properties related to this menu
             """
-            raise NotImplementedError
+            folder_selected = kargs.get("folder_selection")
+            name_entry_value = kargs.get("name_entry")
+            automatic_naming_value = kargs.get("automatic_naming_checkbutton")
+            audiovideo_radiobutton_value = kargs.get("audiovideo_radiobutton")
+            video_radiobutton_value = kargs.get("video_radiobutton")
+            audio_radiobutton_value = kargs.get("audio_radiobutton")
+            feed_format_value = kargs.get("feed_format")
+
+            self.folder_chooser_button.set_filename(folder_selected)
+            self.folder_selection = folder_selected
+            self.name_entry.set_text(name_entry_value)
+            self.filename = name_entry_value
+            self.automatic_naming_checkbutton.set_active(automatic_naming_value)
+            self.audiovideo_radiobutton.set_active(audiovideo_radiobutton_value)
+            self.video_radiobutton.set_active(video_radiobutton_value)
+            self.audio_radiobutton.set_active(audio_radiobutton_value)
+            self._set_format_extension(feed_format_value)
+
+            self.on_confirm_clicked(self.store_confirm_button)
 
         def on_folder_selected(self, widget):
             self.folder_selection = widget.get_filename()
@@ -1417,12 +1707,8 @@ class StoreMenu(AbstractMenu):
                 self.store_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
-            self.full_filename = (self.filename
-                                  + self._get_formatted_timestamp()
-                                  + self._get_format_extension())
-            print("Confirm clicked full_filename =", self.full_filename)
-            self.filepath = os.path.join(
-                self.folder_selection, self.full_filename)
+            self.create_unique_filename()
+            self.build_filepath()
             element_name = self.current_stream_type + "_" + self.filename
             if not self.filesink:
                 self.filesink = self.pipeline.create_store_sink(
@@ -1467,34 +1753,35 @@ class SettingsMenu(AbstractMenu):
         title = Gtk.Label("Settings")
         title.set_margin_bottom(6)
 
-        text_overlay_entry = Gtk.Entry()
-        text_overlay_entry.set_placeholder_text("Text displayed on screen")
-        text_overlay_entry.set_width_chars(30)
-        text_overlay_entry.connect("changed", self.on_text_change)
-        text_overlay_entry.set_sensitive(False)  # DEV
+        self.text_overlay_entry = Gtk.Entry()
+        self.text_overlay_entry.set_placeholder_text("Text displayed on screen")
+        self.text_overlay_entry.set_width_chars(30)
+        self.text_overlay_entry.connect("changed", self.on_text_change)
+        self.text_overlay_entry.set_sensitive(False)  # DEV
 
-        text_position_combobox = Gtk.ComboBoxText()
+        self.text_position_combobox = Gtk.ComboBoxText()
         for position in self.positions:
-            text_position_combobox.append_text(position)
-        text_position_combobox.set_active(0)
-        text_position_combobox.set_margin_left(24)
-        text_position_combobox.set_sensitive(False)  # DEV
+            self.text_position_combobox.append_text(position)
+        self.text_position_combobox.set_active(0)
+        self.text_position_combobox.set_margin_left(24)
+        self.text_position_combobox.set_sensitive(False)  # DEV
 
-        image_chooser_button = Gtk.FileChooserButton()
-        image_chooser_button.set_title("Select an image to display")
-        image_chooser_button.connect("file-set", self.on_image_selected)
-        image_chooser_button.set_sensitive(False)  # DEV
+        self.image_chooser_button = Gtk.FileChooserButton()
+        self.image_chooser_button.set_title("Select an image to display")
+        self.image_chooser_button.connect("file-set", self.on_image_selected)
+        self.image_chooser_button.set_sensitive(False)  # DEV
 
-        image_position_combobox = Gtk.ComboBoxText()
+        self.image_position_combobox = Gtk.ComboBoxText()
         for position in self.positions:
-            image_position_combobox.append_text(position)
-        image_position_combobox.set_active(1)
-        image_position_combobox.set_margin_left(24)
-        image_position_combobox.set_sensitive(False)  # DEV
+            self.image_position_combobox.append_text(position)
+        self.image_position_combobox.set_active(1)
+        self.image_position_combobox.set_margin_left(24)
+        self.image_position_combobox.set_sensitive(False)  # DEV
 
         self.settings_confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
         self.settings_confirm_button.set_label("Confirm")
+        self.settings_confirm_button.set_size_request(250, 20)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         separator.set_margin_top(6)
@@ -1503,10 +1790,10 @@ class SettingsMenu(AbstractMenu):
         vbox.set_margin_right(6)
         _pack_widgets(vbox,
                       title,
-                      text_overlay_entry,
-                      text_position_combobox,
-                      image_chooser_button,
-                      image_position_combobox,
+                      self.text_overlay_entry,
+                      self.text_position_combobox,
+                      self.image_chooser_button,
+                      self.image_position_combobox,
                       self.settings_confirm_button,
                       separator)
         self._make_scrolled_window(vbox)
@@ -1525,7 +1812,15 @@ class SettingsMenu(AbstractMenu):
 
         :return: :class:`dict` as property_key: value
         """
-        return {}
+        text_overlay_value = self.text_overlay_entry.get_text()
+        text_position_value = self.text_position_combobox.get_active_text()
+        image_filename = self.image_chooser_button.get_filename()
+        image_position_value = self.image_position_combobox.get_active_text()
+
+        return {"text_overlay_entry": text_overlay_value,
+                "text_position_combobox": text_position_value,
+                "image_chooser_button": image_filename,
+                "image_position_combobox": image_position_value}
 
     def set_properties(self, **kargs):
         """
@@ -1533,7 +1828,25 @@ class SettingsMenu(AbstractMenu):
 
         :param kargs: :class:`dict` containing properties related to this menu
         """
-        raise NotImplementedError
+        text_overlay_value = kargs.get("text_overlay_entry")
+        text_position_value = kargs.get("text_position_combobox")
+        image_filename = kargs.get("image_chooser_button")
+        image_position_value = kargs.get("image_position_combobox")
+
+        self.text_overlay_entry.set_text(text_overlay_value)
+        self.set_active_text(self.text_position_combobox,
+                             self.positions,
+                             text_position_value)
+        try:
+            self.image_chooser_button.set_filename(image_filename)
+        except TypeError:
+            # No image has been choosen, just ignore the exception.
+            pass
+        self.set_active_text(self.image_position_combobox,
+                             self.positions,
+                             image_position_value)
+
+        self.on_confirm_clicked(self.settings_confirm_button)
 
     def on_settings_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
