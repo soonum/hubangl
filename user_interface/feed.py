@@ -1757,7 +1757,7 @@ class SettingsMenu(AbstractMenu):
         self.text_overlay_entry.set_placeholder_text("Text displayed on screen")
         self.text_overlay_entry.set_width_chars(30)
         self.text_overlay_entry.connect("changed", self.on_text_change)
-        self.text_overlay_entry.set_sensitive(False)  # DEV
+        self.text_overlay_entry.set_sensitive(True)  # DEV
 
         self.text_position_combobox = Gtk.ComboBoxText()
         for position in self.positions:
@@ -1769,7 +1769,7 @@ class SettingsMenu(AbstractMenu):
         self.image_chooser_button = Gtk.FileChooserButton()
         self.image_chooser_button.set_title("Select an image to display")
         self.image_chooser_button.connect("file-set", self.on_image_selected)
-        self.image_chooser_button.set_sensitive(False)  # DEV
+        self.image_chooser_button.set_sensitive(True)  # DEV
 
         self.image_position_combobox = Gtk.ComboBoxText()
         for position in self.positions:
@@ -1839,6 +1839,7 @@ class SettingsMenu(AbstractMenu):
                              text_position_value)
         try:
             self.image_chooser_button.set_filename(image_filename)
+            self.pipeline.set_image_overlay(image_filename, -6, 6)
         except TypeError:
             # No image has been choosen, just ignore the exception.
             pass
