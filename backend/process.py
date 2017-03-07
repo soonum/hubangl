@@ -1081,7 +1081,7 @@ class Pipeline:
         screen_sink.set_related_tee(tee_video_source)
         screen_sink.set_property("sync", False)
 
-        source_branch = (videorate, capsfilter,  # self.image_overlay,  # DEV
+        source_branch = (videorate, capsfilter,   self.image_overlay,  # DEV
                          self.text_overlay, tee_video_source,)
         output_branch_encoding = (vp8_encoder,)
         output_branch_muxing = (queue_muxer_av2, mkv_muxer, tee_output_video)
