@@ -61,7 +61,7 @@ def find_audio():
     """
     AUDIO_DEV_LIST_PATH = r'/tmp/audio_dev'
     audio_dev = {}
-    cmd = 'pactl list > ' + AUDIO_DEV_LIST_PATH + ' 2>&1'
+    cmd = 'LC_ALL=C pactl list > ' + AUDIO_DEV_LIST_PATH + ' 2>&1'
 
     system(cmd)
     audio_dev = parse_pactl_list(AUDIO_DEV_LIST_PATH, audio_dev)
@@ -84,7 +84,7 @@ def parse_pactl_list(filepath, output_dict,):
     is_input = False
     is_output = False
 
-    with open(filepath, 'r') as f:
+    with open(filepath, 'r', encoding="utf-8") as f:
         for line in f:
             if NAME_LINE in line:
                 dev_name = line[(len(NAME_LINE) + 1):].rstrip()
