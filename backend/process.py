@@ -80,9 +80,9 @@ class PlaceholderPipeline:
 
         caps_string = ("video/x-raw,"
                        + "format=I420,"
-                       + "width=640,"  # TODO: adjust value
-                       + "height=480,"  # TODO: adjust value
-                       + "framerate=30/1")
+                       + "width=1280,"  # TODO: adjust value
+                       + "height=720,"  # TODO: adjust value
+                       + "framerate=24/1")
         caps = Gst.caps_from_string(caps_string)
         self.capsfilter = Gst.ElementFactory.make("capsfilter", "capsfilter")
         self.capsfilter.set_property("caps", caps)
@@ -1040,9 +1040,9 @@ class Pipeline:
         # Caps:
         caps_string = ("video/x-raw,"
                        + "format=I420,"
-                       + "width=640,"  # TODO: adjust value
-                       + "height=480,"  # TODO: adjust value
-                       + "framerate=30/1")
+                       + "width=1280,"  # TODO: adjust value
+                       + "height=720,"  # TODO: adjust value
+			       + "framerate=24/1")
         caps = Gst.caps_from_string(caps_string)
         capsfilter = GstElement("capsfilter", "capsfilter")
         capsfilter.set_property("caps", caps)
@@ -1065,13 +1065,13 @@ class Pipeline:
         # Encoder:
         vp8_encoder = GstElement("vp8enc", "vp8_encoder", tee_output=True)
         vp8_encoder.set_related_tee(tee_video_source)
-        vp8_encoder.set_property("min_quantizer", 1)
-        vp8_encoder.set_property("max_quantizer", 13)
-        vp8_encoder.set_property("cpu-used", 5)
+        #vp8_encoder.set_property("min_quantizer", 5)
+        #vp8_encoder.set_property("max_quantizer", 13)
+        vp8_encoder.set_property("cpu-used", 8)
         vp8_encoder.set_property("deadline", 1)
         vp8_encoder.set_property("threads", 2)
-        vp8_encoder.set_property("sharpness", 7)
-        vp8_encoder.set_property('keyframe-max-dist', 25)
+        #vp8_encoder.set_property("sharpness", 7)
+        vp8_encoder.set_property('keyframe-max-dist', 120)
         vp8_encoder.set_property('target-bitrate', 2000000)
         # Muxer:
         mkv_muxer = GstElement("matroskamux", "mkv_muxer", tee_input=True)
@@ -1291,7 +1291,7 @@ class Monitoring(Pipeline):
         # Tee:
         tee_video_source = GstElement("tee", "tee_video_source")
         # Caps:
-        caps_string = "video/x-raw," + "width=(int)640," + "height=(int)360"
+        caps_string = "video/x-raw," + "width=(int)1280," + "height=(int)720" + "framerate=(fraction)24/1"
         caps = Gst.caps_from_string(caps_string)
         capsfilter = GstElement("capsfilter", "capsfilter", tee_input=True)
         capsfilter.set_related_tee(tee_video_source)
