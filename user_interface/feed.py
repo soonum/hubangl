@@ -451,8 +451,6 @@ class ControlBar:
                 and not self.audio_menu.current_audio_source):
             return
 
-        self._pipeline.set_text_overlay(*self.settings_menu.get_text_overlay())
-
         # Ensure placeholder pipeline is stopped first in case of
         # loading a session configuration
         self._placeholder_pipeline.set_stop_state()
