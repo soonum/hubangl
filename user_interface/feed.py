@@ -28,6 +28,7 @@ import gi
 gi.require_version("Gst", "1.0")  # NOQA # DEBUG
 from gi.repository import Gst
 from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import GdkX11
 from gi.repository import GstVideo
 from gi.repository import GObject
@@ -1740,6 +1741,8 @@ class SettingsMenu(AbstractMenu):
         self.requested_text_overlay = None
         self.current_image_path = None
         self.requested_image_path = None
+        self.hide_text_requested = False
+        self.hide_image_requested = False
 
         self.h_alignment = "left"  # DEV
         self.v_alignment = "top"  # DEV
@@ -1766,6 +1769,9 @@ class SettingsMenu(AbstractMenu):
         self.text_position_combobox.set_margin_left(24)
         self.text_position_combobox.set_sensitive(False)  # DEV
 
+        self.hide_text_checkbutton = Gtk.CheckButton("Hide Text")
+        self.hide_text_checkbutton.connect("toggled", self.on_hide_text_toggle)
+
         self.image_chooser_button = Gtk.FileChooserButton()
         self.image_chooser_button.set_title("Select an image to display")
         self.image_chooser_button.connect("file-set", self.on_image_selected)
@@ -1777,6 +1783,10 @@ class SettingsMenu(AbstractMenu):
         self.image_position_combobox.set_active(1)
         self.image_position_combobox.set_margin_left(24)
         self.image_position_combobox.set_sensitive(False)  # DEV
+
+        self.hide_image_checkbutton = Gtk.CheckButton("Hide Image")
+        self.hide_image_checkbutton.connect(
+            "toggled", self.on_hide_image_toggle)
 
         self.settings_confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
@@ -1792,8 +1802,10 @@ class SettingsMenu(AbstractMenu):
                       title,
                       self.text_overlay_entry,
                       self.text_position_combobox,
+                      self.hide_text_checkbutton,
                       self.image_chooser_button,
                       self.image_position_combobox,
+                      self.hide_image_checkbutton,
                       self.settings_confirm_button,
                       separator)
         self._make_scrolled_window(vbox)
@@ -1814,13 +1826,17 @@ class SettingsMenu(AbstractMenu):
         """
         text_overlay_value = self.text_overlay_entry.get_text()
         text_position_value = self.text_position_combobox.get_active_text()
+        hide_text_value = self.hide_text_requested
         image_filename = self.image_chooser_button.get_filename()
         image_position_value = self.image_position_combobox.get_active_text()
+        hide_image_value = self.hide_image_requested
 
         return {"text_overlay_entry": text_overlay_value,
                 "text_position_combobox": text_position_value,
+                "hide_text_checkbutton": hide_text_value,
                 "image_chooser_button": image_filename,
-                "image_position_combobox": image_position_value}
+                "image_position_combobox": image_position_value,
+                "hide_image_checkbutton": hide_image_value}
 
     def set_properties(self, **kargs):
         """
@@ -1830,13 +1846,17 @@ class SettingsMenu(AbstractMenu):
         """
         text_overlay_value = kargs.get("text_overlay_entry")
         text_position_value = kargs.get("text_position_combobox")
+        hide_text_value = kargs.get("hide_text_checkbutton")
         image_filename = kargs.get("image_chooser_button")
         image_position_value = kargs.get("image_position_combobox")
+        hide_image_value = kargs.get("hide_image_checkbutton")
 
         self.text_overlay_entry.set_text(text_overlay_value)
         self.set_active_text(self.text_position_combobox,
                              self.positions,
                              text_position_value)
+        self.hide_text_checkbutton.set_active(hide_text_value)
+
         try:
             self.image_chooser_button.set_filename(image_filename)
             self.pipeline.set_image_overlay(image_filename, -6, 6)
@@ -1846,6 +1866,7 @@ class SettingsMenu(AbstractMenu):
         self.set_active_text(self.image_position_combobox,
                              self.positions,
                              image_position_value)
+        self.hide_image_checkbutton.set_active(hide_image_value)
 
         self.on_confirm_clicked(self.settings_confirm_button)
 
@@ -1860,14 +1881,27 @@ class SettingsMenu(AbstractMenu):
         self.requested_image_path = widget.get_filename()
         self.settings_confirm_button.set_sensitive(True)
 
+    def on_hide_text_toggle(self, widget):
+        self.hide_text_requested = widget.get_active()
+        self.settings_confirm_button.set_sensitive(True)
+
+    def on_hide_image_toggle(self, widget):
+        self.hide_image_requested = widget.get_active()
+        self.settings_confirm_button.set_sensitive(True)
+
     def on_confirm_clicked(self, widget):
-        if self.requested_text_overlay != self.current_text_overlay:
+        if not self.hide_text_requested:
             self.pipeline.set_text_overlay(
                 self.requested_text_overlay, "left", "top")
-            self.current_text_overlay = self.requested_text_overlay
+        else:
+            self.pipeline.set_text_overlay("", "left", "top")
 
-        if self.requested_image_path != self.current_image_path:
-            self.pipeline.set_image_overlay(self.requested_image_path, -6, 6)
+        if not self.hide_image_requested and not self.current_image_path:
+            self.pipeline.set_image_overlay(
+                self.requested_image_path, -6, 6, 1)
             self.current_image_path = self.requested_image_path
+        else:
+            # Hack to hide an image.
+            self.pipeline.set_image_overlay(alpha=0.0001)
 
         self.settings_confirm_button.set_sensitive(False)
