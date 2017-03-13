@@ -24,6 +24,7 @@ import pathlib
 import sys
 
 from gi.repository import Gtk
+from gi.repository import Gdk
 
 import feed
 sys.path.insert(0, "..")  # NOQA # DEBUG
@@ -56,6 +57,7 @@ class MainWindow:
     """
     def __init__(self, default_app=None):
         self.images = images.HubanglImages()
+        self._load_custom_css()
 
         self.window = Gtk.Window()
         self.window.set_title("HUBAngl")
@@ -86,6 +88,19 @@ class MainWindow:
         self.window.show_all()
 
         self.current_app.make_app()
+
+    def _load_custom_css(self):
+        css_filepath = pathlib.Path(__file__).parent.joinpath("gui_style.css")
+        with css_filepath.open("rb") as css_file:
+            css_data = css_file.read()
+
+        style_provider = Gtk.CssProvider()
+        style_provider.load_from_data(css_data)
+
+        Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(), style_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
 
     def _build_menu_new(self, menu_bar):
         """
