@@ -1,0 +1,9 @@
+GtkToolbar {
+    border-style: solid;
+    border-width: 2px;
+    border-color: #FF8729;
+}
+
+GtkOverlay {
+    background-color: black;
+}
