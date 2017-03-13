@@ -309,7 +309,8 @@ class Pipeline:
         """
         return self.text_overlay.get_property("text")
 
-    def set_image_overlay(self, filepath, offset_x, offset_y):
+    def set_image_overlay(self, filepath=None, offset_x=None,
+                          offset_y=None, alpha=None):
         """
         Set image displayed over video stream.
 
@@ -317,9 +318,14 @@ class Pipeline:
         :param offset_x: image position on x axis in pixel
         :param offset_y: image position on y axis in pixel
         """
-        self.image_overlay.set_property("location", filepath)
-        self.image_overlay.set_property("offset-x", offset_x)
-        self.image_overlay.set_property("offset-y", offset_y)
+        if filepath:
+            self.image_overlay.set_property("location", filepath)
+        if offset_x:
+            self.image_overlay.set_property("offset-x", offset_x)
+        if offset_y:
+            self.image_overlay.set_property("offset-y", offset_y)
+        if alpha:
+            self.image_overlay.set_property("alpha", alpha)
 
     def get_speaker_sinks(self):
         """
