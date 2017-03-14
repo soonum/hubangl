@@ -20,12 +20,10 @@
 
 import abc
 import os
-import sys
 import time
 
 import gi
-#gi.require_version("Gtk", "3.0")  # NOQA # DEBUG
-gi.require_version("Gst", "1.0")  # NOQA # DEBUG
+gi.require_version("Gst", "1.0")  # NOQA
 from gi.repository import Gst
 from gi.repository import Gtk
 from gi.repository import Gdk
@@ -33,9 +31,7 @@ from gi.repository import GdkX11
 from gi.repository import GstVideo
 from gi.repository import GObject
 
-sys.path.insert(0, "..")  # NOQA # TODO: use __init__.py for managing backend package
 from backend import process
-from backend import iofetch
 
 
 AUDIO_VIDEO_STREAM = process.AUDIO_VIDEO_STREAM
@@ -1824,10 +1820,10 @@ class SettingsMenu(AbstractMenu):
         """
         text_overlay_value = self.text_overlay_entry.get_text()
         text_position_value = self.text_position_combobox.get_active_text()
-        hide_text_value = self.hide_text_requested
+        hide_text_value = self.hide_text_checkbutton.get_active()
         image_filename = self.image_chooser_button.get_filename()
         image_position_value = self.image_position_combobox.get_active_text()
-        hide_image_value = self.hide_image_requested
+        hide_image_value = self.hide_image_checkbutton.get_active()
 
         return {"text_overlay_entry": text_overlay_value,
                 "text_position_combobox": text_position_value,
@@ -1844,10 +1840,10 @@ class SettingsMenu(AbstractMenu):
         """
         text_overlay_value = kargs.get("text_overlay_entry")
         text_position_value = kargs.get("text_position_combobox")
-        hide_text_value = kargs.get("hide_text_checkbutton")
+        hide_text_value = kargs.get("hide_text_checkbutton", False)
         image_filename = kargs.get("image_chooser_button")
         image_position_value = kargs.get("image_position_combobox")
-        hide_image_value = kargs.get("hide_image_checkbutton")
+        hide_image_value = kargs.get("hide_image_checkbutton", False)
 
         self.text_overlay_entry.set_text(text_overlay_value)
         self.set_active_text(self.text_position_combobox,

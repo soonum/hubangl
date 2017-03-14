@@ -1,4 +1,3 @@
-#!/usr/bin/env python34
 # -*- coding: utf-8 -*-
 
 # This file is part of HUBAngl.
@@ -21,17 +20,12 @@
 
 import json
 import pathlib
-import sys
 
 from gi.repository import Gtk
 from gi.repository import Gdk
 
-import feed
-sys.path.insert(0, "..")  # NOQA # DEBUG
-from backend import ioelements  # DEBUG
-from backend import iofetch  # DEBUG
-from backend import process
-import images
+from user_interface import feed
+from user_interface import images
 
 
 def _pack_widgets(box, *widgets):
