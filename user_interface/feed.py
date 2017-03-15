@@ -450,6 +450,8 @@ class ControlBar:
         # Ensure placeholder pipeline is stopped first in case of
         # loading a session configuration
         self._placeholder_pipeline.set_stop_state()
+        self._pipeline.set_stop_state()
+        self._pipeline.set_output_sink()
         self._pipeline.set_play_state()
         self.play_button.set_sensitive(False)
 
@@ -466,6 +468,8 @@ class ControlBar:
 
         self._switch_widget_icons(widget, "stop")
         self._pipeline.set_stop_state()
+        self._pipeline.remove_output_sinks()
+        self._pipeline.set_play_state()
         self.stop_button.set_sensitive(False)
 
         # FIXME: a change of feed type does not create a new output element

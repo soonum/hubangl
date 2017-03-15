@@ -216,7 +216,6 @@ class Pipeline:
             self.is_preview_state = False
 
         if not self.is_playing:
-            self.set_output_sink()
             self.pipeline.set_state(Gst.State.PLAYING)
             self.is_playing = True
 
@@ -808,7 +807,6 @@ class Pipeline:
                         parent.gstelement.unlink(sink_gstelement.gstelement)
                     if self._exist_in_pipeline(sink.gstelement):
                         self.pipeline.remove(sink_gstelement.gstelement)
-                streamstore_elements[feed_type] = []
 
     def _get_streamstore_parent(self, ioelement, feed_type):
         """
