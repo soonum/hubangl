@@ -377,7 +377,7 @@ class MainWindow:
 
     def on_mainwindow_close(self, *args):
         self.current_app.feed.placeholder_pipeline.set_stop_state()
-        self.current_app.feed.pipeline.set_stop_state()
+        self.current_app.feed.pipeline.close()
         Gtk.main_quit()
 
     def on_save_clicked(self, widget):

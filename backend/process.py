@@ -212,7 +212,7 @@ class Pipeline:
         or resuming broadcasting.
         """
         if self.is_preview_state:
-            self.set_stop_state()
+            self.pipeline.set_state(Gst.State.NULL)
             self.is_preview_state = False
 
         if not self.is_playing:
@@ -228,10 +228,23 @@ class Pipeline:
 
     def set_stop_state(self):
         """
-        Set pipeline instance to NULL state and end broadcasting.
+        Set pipeline instance to NULL state and end broadcasting, then
+        the pipeline gets back to preview mode.
         """
         self.pipeline.set_state(Gst.State.NULL)
         self.is_playing = False
+
+        # Get back to preview mode.
+        self.remove_output_sinks()
+        self.pipeline.set_state(Gst.State.PLAYING)
+        self.is_preview_state = True
+
+    def close(self):
+        """
+        Set pipeline instance to NULL state and shut it down.
+        """
+        self.pipeline.set_state(Gst.State.NULL)
+        self.pipeline = None
 
     def set_preview_state(self, default_source_type_requested):
         """
@@ -796,7 +809,7 @@ class Pipeline:
 
     def remove_output_sinks(self):
         """
-        Remove all output sinks from the pipeline.
+        Remove all output sinks from the GStreamer pipeline.
         """
         for streamstore_elements in (self.stream_sinks, self.store_sinks):
             for feed_type, sinks in streamstore_elements.items():
@@ -808,7 +821,15 @@ class Pipeline:
                         parent.gstelement.unlink(sink_gstelement.gstelement)
                     if self._exist_in_pipeline(sink.gstelement):
                         self.pipeline.remove(sink_gstelement.gstelement)
-                streamstore_elements[feed_type] = []
+
+                    # FIXME: Following lines are useful only when an
+                    # audio/video stream output is removed. We need to put
+                    # back in place a fakesink to prevent the freezing of the
+                    # preview video feed.
+                    if parent is self.av_process_branch5[-2]:
+                        self.add_elements(
+                            self.pipeline, (self.fakesink_av_stream,))
+                        parent.gstelement.link(self.fakesink_av_stream.gstelement)
 
     def _get_streamstore_parent(self, ioelement, feed_type):
         """
@@ -1048,7 +1069,7 @@ class Pipeline:
                        + "format=I420,"
                        + "width=1280,"  # TODO: adjust value
                        + "height=720,"  # TODO: adjust value
-			       + "framerate=24/1")
+                       + "framerate=24/1")
         caps = Gst.caps_from_string(caps_string)
         capsfilter = GstElement("capsfilter", "capsfilter")
         capsfilter.set_property("caps", caps)
@@ -1056,7 +1077,7 @@ class Pipeline:
         video_scale = GstElement("videoscale", "video_scale")
         # Image overlay:
         self.image_overlay = GstElement("gdkpixbufoverlay", "image_overlay")
-        self.image_overlay.set_property("location", DEFAULT_IMAGE)
+        #self.image_overlay.set_property("location", DEFAULT_IMAGE)
         self.image_overlay.set_property("offset-x", -6)
         self.image_overlay.set_property("offset-y", 6)
         # Text overlay:
@@ -1163,14 +1184,14 @@ class Pipeline:
         webm_muxer.set_related_tee(tee_output_audiovideo)
         webm_muxer.set_property("streamable", True)
 
-        fakesink_av_file = GstElement("fakesink", "fakesink_av_file")  # DEBUG
-        fakesink_av_stream = GstElement("fakesink", "fakesink_av_stream")  # DEBUG
+        self.fakesink_av_file = GstElement("fakesink", "fakesink_av_file")  # DEBUG
+        self.fakesink_av_stream = GstElement("fakesink", "fakesink_av_stream")  # DEBUG
 
         source_audio = (queue_muxer_audio,)
         source_video = (queue_muxer_video,)
         output_branch_muxing = (webm_muxer, tee_output_audiovideo)
-        output_branch_storing = (queue_audiovideo_filesink, fakesink_av_file)
-        output_branch_streaming = (queue_audiovideo_streamsink, fakesink_av_stream)
+        output_branch_storing = (queue_audiovideo_filesink, self.fakesink_av_file)
+        output_branch_streaming = (queue_audiovideo_streamsink, self.fakesink_av_stream)
 
         return (source_audio,
                 source_video,
