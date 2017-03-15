@@ -60,6 +60,7 @@ class PlaceholderPipeline:
     def __init__(self):
         self.pipeline = Gst.Pipeline()
         self.pipeline_elements = self._create_elements()
+        self.is_playing = False
 
         self._build_pipeline(*self.pipeline_elements)
 
@@ -116,12 +117,14 @@ class PlaceholderPipeline:
         Set pipeline instance to PLAYING state either to start.
         """
         self.pipeline.set_state(Gst.State.PLAYING)
+        self.is_playing = True
 
     def set_stop_state(self):
         """
         Set pipeline instance to NULL state.
         """
         self.pipeline.set_state(Gst.State.NULL)
+        self.is_playing = False
 
     def is_playing_state(self):
         """
@@ -226,15 +229,21 @@ class Pipeline:
         """
         self.pipeline.set_state(Gst.State.PAUSED)
 
+    def set_null_state(self):
+        """
+        Set pipeline instance to NULL state.
+        """
+        self.pipeline.set_state(Gst.State.NULL)
+
     def set_stop_state(self):
         """
         Set pipeline instance to NULL state and end broadcasting, then
         the pipeline gets back to preview mode.
         """
-        self.pipeline.set_state(Gst.State.NULL)
+        self.set_null_state()
         self.is_playing = False
 
-        # Get back to preview mode.
+        # Switch back to preview mode.
         self.remove_output_sinks()
         self.pipeline.set_state(Gst.State.PLAYING)
         self.is_preview_state = True
@@ -243,7 +252,7 @@ class Pipeline:
         """
         Set pipeline instance to NULL state and shut it down.
         """
-        self.pipeline.set_state(Gst.State.NULL)
+        self.set_null_state()
         self.pipeline = None
 
     def set_preview_state(self, default_source_type_requested):
@@ -827,9 +836,17 @@ class Pipeline:
                     # back in place a fakesink to prevent the freezing of the
                     # preview video feed.
                     if parent is self.av_process_branch5[-2]:
-                        self.add_elements(
-                            self.pipeline, (self.fakesink_av_stream,))
-                        parent.gstelement.link(self.fakesink_av_stream.gstelement)
+                        try:
+                            self.add_elements(
+                                self.pipeline, (self.fakesink_av_stream,))
+                        except ElementAlreadyAdded:
+                            # The pipeline has not been set to PLAY state, so
+                            # the fakesink is already inside it.
+                            # Just ignoring the exception.
+                            pass
+                        else:
+                            parent.gstelement.link(
+                                self.fakesink_av_stream.gstelement)
 
     def _get_streamstore_parent(self, ioelement, feed_type):
         """

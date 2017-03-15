@@ -405,6 +405,24 @@ class MainWindow:
 
         dialog.destroy()
 
+    def _need_load_confirmation(self):
+        """
+        Determine if a user confirmation is needed before loading a session.
+
+        :return: ``True`` if a confirmation is needed, ``False`` otherwise
+        """
+        if not self.current_app.feed.placeholder_pipeline.is_playing:
+            stream_sinks = self.current_app.feed.pipeline.stream_sinks
+            store_sinks = self.current_app.feed.pipeline.store_sinks
+            for streamstore_elements in (stream_sinks, store_sinks):
+                for feed_type in streamstore_elements:
+                    # This is the placeholder pipeline but an output sinks has
+                    # already been set, the settings will be lost in case of
+                    # session loading, we need to ask a confirmation from user.
+                    return True
+            else:
+                return False
+
     def on_load_clicked(self, widget):
         file_load_dialog = Gtk.FileChooserDialog(
                 title="Load Session",
@@ -420,9 +438,14 @@ class MainWindow:
     def on_load_response(self, dialog, response_id):
         if response_id == Gtk.ResponseType.ACCEPT:
             confirmation_message = "Current settings will be overwritten."
-            self.build_confirm_dialog(
-                    Gtk.MessageType.WARNING, confirmation_message,
-                    on_signal="response", callback=self.on_load_confirmation)
+            if self._need_load_confirmation():
+                self.build_confirm_dialog(Gtk.MessageType.WARNING,
+                                          confirmation_message,
+                                          on_signal="response",
+                                          callback=self.on_load_confirmation)
+            else:
+                self.load_confirmed = True
+
             if self.load_confirmed:
                 file_to_load = dialog.get_filename()
                 with open(file_to_load) as f:
