@@ -224,8 +224,7 @@ class NewFeed:
     def spread_properties(self, **kargs):
         """
         """
-        self.controls.on_stop_clicked(self.controls.stop_button)
-        self.placeholder_pipeline.set_play_state()
+        self.pipeline.set_null_state()
 
         self.remove_all_inputs()
         self.remove_all_outputs()
@@ -247,6 +246,9 @@ class NewFeed:
                 self.store_menu.on_add_clicked(
                     self.store_menu.store_add_button)
                 self.store_menu.feeds[-1].set_properties(**sub_dict)
+
+        # Forcing to switch back to preview mode
+        self.pipeline.set_stop_state()
 
     def remove_all_inputs(self):
         """
