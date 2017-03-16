@@ -630,7 +630,6 @@ class AbstractMenu:
                       self.ipv4_field3, self.ipv4_field4):
             field.set_max_length(3)
             field.set_width_chars(3)
-            field.set_max_width_chars(3)
             if hasattr(field, "set_max_width_chars"):
                 field.set_max_width_chars(3)
             field.set_input_purpose(Gtk.InputPurpose.DIGITS)
@@ -638,7 +637,6 @@ class AbstractMenu:
         self.port_entry = Gtk.Entry()
         self.port_entry.set_max_length(5)
         self.port_entry.set_width_chars(5)
-        self.port_entry.set_max_width_chars(5)
         if hasattr(self.port_entry, "set_max_width_chars"):
             self.port_entry.set_max_width_chars(5)
         self.port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
