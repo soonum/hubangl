@@ -1618,7 +1618,7 @@ class StoreMenu(AbstractMenu):
             :return: :class:`str`
             """
             if self.automatic_naming_checkbutton.get_active():
-                return time.strftime("_%Y%m%d__%H-%M-%S", time.gmtime())
+                return time.strftime("_%Y%m%d__%H-%M-%S", time.localtime())
             return ""
 
         def create_unique_filename(self):
