@@ -19,16 +19,88 @@
 #
 # Copyright (c) 2016-2018 David Testé
 
-import gi
-gi.require_version("Gst", "1.0")  # NOQA
-gi.require_version('Gtk', '3.0')  # NOQA
+import argparse
+import json
+import pathlib
+
 from gi.repository import Gst
 from gi.repository import Gtk
 
 import user_interface.main_window
 
 
+VERSION = "0.1.0"  # TODO: Fecth version from version.py
+
+
+def _huba_file(filename):
+    """
+    Determine if ``filename`` is a .huba file, if not it will raise an error.
+
+    :param filename: user input as :class:`str`
+
+    :return: absolute path to ``filename``
+    """
+    filepath = pathlib.Path(filename)
+
+    try:
+        with filepath.open() as f:
+            session = json.load(f)
+            # Checking if session file contains at least the minimal keys set:
+            video = session["video"]
+            audio = session["audio"]
+            settings = session["settings"]
+    except FileNotFoundError:
+        message = "File provided was not found."
+        raise argparse.ArgumentTypeError(message)
+    except KeyError:
+        message = "File provided is not formatted correctly."
+        raise argparse.ArgumentTypeError(message)
+    except ValueError:
+        # An error occured during decoding JSON file.
+        message = "File provided could not be decoded."
+        raise argparse.ArgumentTypeError(message)
+    else:
+        return filepath.resolve().as_posix()
+
+
+def create_input_args():
+    """
+    Create input arguments available to user.
+
+    :return: :class:`argparse.ArgumentParser`
+    """
+    description = """
+        HUBAngl Uses Broadcaster Angle\n
+        HUBAngl broadcast audio and video feeds.
+    """
+    help_load_session = "load session file at startup"
+    help_mode = "select view mode at startup"
+    version = "HUBAngl v" + VERSION
+
+    parser = argparse.ArgumentParser(description)
+
+    parser.add_argument("-l", "--load",
+                        type=_huba_file,
+                        help=help_load_session)
+    #parser.add_argument("-m", "--mode", default=0,  # DEV
+    #                    help=help_mode)  # DEV
+    parser.add_argument("-v", "--version", action="version", version=version)
+    return parser
+
+
+def get_args(parser):
+    """
+    Retrieve input arguments.
+
+    :param parser: :class:`argparse.ArgumentParser`
+    """
+    return parser.parse_args()
+    print("Args =", args.load)
+
+
 if __name__ == "__main__":
-    Gst.init(None)
-    user_interface.main_window.MainWindow()
+    args = get_args(create_input_args())
+
+    Gst.init()
+    user_interface.main_window.MainWindow(args)
     Gtk.main()

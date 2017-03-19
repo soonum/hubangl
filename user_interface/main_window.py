@@ -34,23 +34,26 @@ class MainWindow:
     Main window of user interface.
     Specific application is pluged to it depending on view mode selected,
     default application launched is StandaloneApp.
+
+    :param options: input arguments as :class:`argparse.Namespace`
     """
-    def __init__(self, default_app=None):
+    def __init__(self, options, *args, **kwargs):
+        #: Filename of a session to load
+        self.session = options.load
+        #: View mode at startup
+        #self.mode = options.mode
+
         self.images = images.HubanglImages()
         self._load_custom_css()
 
         self.window = Gtk.Window()
         self.window.set_title("HUBAngl")
-        #self.window.connect("delete_event", lambda w, e: Gtk.main_quit())
         self.window.set_position(Gtk.WindowPosition.CENTER)
         self.window.set_icon_from_file(self.images.logo_favicon_path)
         self.window.connect("delete_event", self.on_mainwindow_close)
 
-        if default_app:
-            self.current_app = default_app
-        else:
-            self.current_app = BaseApp(self.window, "standalone", self.images)
-            self.current_app_container = self.current_app.container
+        self.current_app = BaseApp(self.window, "standalone", self.images)
+        self.current_app_container = self.current_app.container
 
         self.menu_bar = Gtk.MenuBar()
         self.menu_item_new = self._build_menu_new(self.menu_bar)
@@ -68,6 +71,9 @@ class MainWindow:
         self.window.show_all()
 
         self.current_app.make_app()
+
+        if self.session:
+            self.load_session(self.session)
 
     def _load_custom_css(self):
         css_filepath = pathlib.Path(__file__).parent.joinpath("gui_style.css")
@@ -338,6 +344,25 @@ class MainWindow:
 
         dialog.destroy()
 
+    def load_session(self, filepath):
+        """
+        Load a *.huba file as a session.
+
+        :param filepath: path to session file as :class:`str`
+        """
+        with open(filepath) as f:
+            try:
+                loaded_session = json.load(f)
+                self.current_app.feed.spread_properties(**loaded_session)
+            except ValueError:
+                message = "An error occurred during file decoding."
+                utils.build_error_dialog(message)
+            except Exception:
+                # An error occurred while setting properties
+                message = "An error occurred during file loading."
+                utils.build_error_dialog(message)
+                raise
+
     def _need_load_confirmation(self):
         """
         Determine if a user confirmation is needed before loading a session.
@@ -381,19 +406,7 @@ class MainWindow:
 
             if self.load_confirmed:
                 file_to_load = dialog.get_filename()
-                with open(file_to_load) as f:
-                    try:
-                        loaded_session = json.load(f)
-                        self.current_app.feed.spread_properties(
-                                **loaded_session)
-                    except ValueError:
-                        message = "An error occurred during file decoding."
-                        utils.build_error_dialog(message)
-                    except Exception:
-                        # An error occurred while setting properties
-                        message = "An error occurred during file loading."
-                        utils.build_error_dialog(message)
-                        raise
+                self.load_session(file_to_load)
 
         dialog.destroy()
 
