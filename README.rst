@@ -24,7 +24,7 @@ Monitoring mode
 ~~~~~~~~~~~~~~~
 Fetch audio and/or video streams and sends it to a remote HUBAngl instance working in control-room mode. Almost no audio/video processing is done is this mode.
 
-.. warning:: This is version 0.1, it is released only for feedback and basic debug purpose.
+.. important:: This is version 0.1, it is released only for feedback and basic debug purpose.
 	  In its current development state, HUBAngl is not fully functional. Some key components are missing as well as nice features.
 
 You must have a GNU/Linux distribution and Python v3.4 or greater in order to launch it (tested only on Trisquel 7 & 8). It uses GTK 3.X for the graphical user interface and GStreamer 1.X for dealing with streams.
