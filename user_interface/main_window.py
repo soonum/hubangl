@@ -55,7 +55,7 @@ class MainWindow:
         #: Filename of a session to load
         self.session = options.load
         #: View mode at startup
-        self.mode = options.mode
+        self.mode = None  # TODO: replace the default arg by option.mode
 
         self.images = images.HubanglImages()
         self._load_custom_css()
