@@ -46,11 +46,14 @@ class MainWindow:
         self.images = images.HubanglImages()
         self._load_custom_css()
 
+        self.accel_group = Gtk.AccelGroup()
+
         self.window = Gtk.Window()
         self.window.set_title("HUBAngl")
         self.window.set_position(Gtk.WindowPosition.CENTER)
         self.window.set_icon_from_file(self.images.logo_favicon_path)
         self.window.connect("delete_event", self.on_mainwindow_close)
+        self.window.add_accel_group(self.accel_group)
 
         self.current_app = BaseApp(self.window, "standalone", self.images)
         self.current_app_container = self.current_app.container
@@ -97,15 +100,18 @@ class MainWindow:
         menu_item.set_submenu(self.dropmenu_new)
         self.subitem_new_session = self._build_menu_item(
             "New Session", self.dropmenu_new,
-            image=Gtk.STOCK_NEW
+            image=Gtk.STOCK_NEW,
+            accelerator_key="<control>N"
         )
         self.subitem_save_configuration = self._build_menu_item(
             "Save configuration", self.dropmenu_new,
-            image=Gtk.STOCK_SAVE, callback=self.on_save_clicked
+            image=Gtk.STOCK_SAVE, callback=self.on_save_clicked,
+            accelerator_key="<control>S"
         )
         self.subitem_load_configuration = self._build_menu_item(
             "Load Configuration", self.dropmenu_new,
-            image=Gtk.STOCK_FILE, callback=self.on_load_clicked
+            image=Gtk.STOCK_FILE, callback=self.on_load_clicked,
+            accelerator_key="<control>L"
         )
         self.subitem_recent_session = self._build_menu_item(
             "Recent Session", self.dropmenu_new,
@@ -113,12 +119,14 @@ class MainWindow:
         )
         self.subitem_preferences = self._build_menu_item(
             "Preferences", self.dropmenu_new,
-            image=Gtk.STOCK_PREFERENCES
+            image=Gtk.STOCK_PREFERENCES,
+            accelerator_key="<control>R"
         )
         self._build_separatormenuitem(self.dropmenu_new)
         self.subitem_quit = self._build_menu_item(
             "Quit", self.dropmenu_new,
-            image=Gtk.STOCK_QUIT, callback=Gtk.main_quit
+            image=Gtk.STOCK_QUIT, callback=self.on_mainwindow_close,
+            accelerator_key="<control>Q"
         )
 
         return menu_item
@@ -133,12 +141,14 @@ class MainWindow:
         self.subitem_play = self._build_menu_item(
                 "Play", self.dropmenu_feed,
                 image=self.images.icons["play"]["regular_16px"],
-                callback=self.on_play_clicked
+                callback=self.on_play_clicked,
+                accelerator_key="<alt>Y"
         )
         self.subitem_stop = self._build_menu_item(
                 "Stop", self.dropmenu_feed,
                 image=self.images.icons["stop"]["regular_16px"],
-                callback=self.on_stop_clicked
+                callback=self.on_stop_clicked,
+                accelerator_key="<alt>P"
         )
         self._build_separatormenuitem(self.dropmenu_feed)
 
@@ -152,12 +162,14 @@ class MainWindow:
         self.subitem_audio = self._build_menu_item(
                 "Audio", self.dropmenu_inputs,
                 image=self.images.icons["micro"]["regular_16px"],
-                callback=self.on_audio_input_clicked
+                callback=self.on_audio_input_clicked,
+                accelerator_key="<alt>A"
         )
         self.subitem_video = self._build_menu_item(
                 "Video", self.dropmenu_inputs,
                 image=self.images.icons["camera"]["regular_16px"],
-                callback=self.on_video_input_clicked
+                callback=self.on_video_input_clicked,
+                accelerator_key="<alt>V"
         )
 
         # Outputs
@@ -170,18 +182,21 @@ class MainWindow:
         self.subitem_stream = self._build_menu_item(
                 "Stream", self.dropmenu_outputs,
                 image=self.images.icons["streaming"]["regular_16px"],
-                callback=self.on_stream_clicked
+                callback=self.on_stream_clicked,
+                accelerator_key="<alt>R"
         )
         self.subitem_store = self._build_menu_item(
                 "Store", self.dropmenu_outputs,
                 image=self.images.icons["storage"]["regular_16px"],
-                callback=self.on_store_clicked
+                callback=self.on_store_clicked,
+                accelerator_key="<alt>O"
         )
         self._build_separatormenuitem(self.dropmenu_feed)
         self.subitem_info = self._build_menu_item(
                 "Info", self.dropmenu_feed,
                 image=self.images.icons["settings"]["regular_16px"],
-                callback=self.on_settings_clicked
+                callback=self.on_settings_clicked,
+                accelerator_key="<alt>G"
         )
 
         return menu_item
@@ -241,9 +256,8 @@ class MainWindow:
         return menu_item
 
     def _build_menu_item(self, name, menu,
-                         image=None,
-                         on_signal="activate",
-                         callback=None):
+                         image=None, on_signal="activate", callback=None,
+                         accelerator_key=None):
         """
         """
         menu_item = Gtk.MenuItem()
@@ -255,15 +269,21 @@ class MainWindow:
                 # ``image`` is a Gtk.Image already loaded.
                 icon = image
             label = Gtk.Label(name)
-            # accelerator = ?
             utils.pack_widgets(hbox, icon, label)
             menu_item.add(hbox)
-            # use pack_end() to add an accelerator in a menu item with an image
         else:
             menu_item.set_label(name)
 
         if callback:
             menu_item.connect(on_signal, callback)
+
+        if accelerator_key:
+            key, modifier = Gtk.accelerator_parse(accelerator_key)
+            menu_item.add_accelerator("activate", self.accel_group,
+                                      key, modifier, Gtk.AccelFlags.VISIBLE)
+            accel_label = Gtk.AccelLabel()
+            accel_label.set_accel_widget(menu_item)
+            hbox.pack_end(accel_label, True, True,0)
 
         menu.append(menu_item)
         return menu_item
