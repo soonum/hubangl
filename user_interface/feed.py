@@ -1064,7 +1064,7 @@ class AudioMenu(AbstractMenu):
         self.mic_sources.connect("changed", self.on_input_change)
         self.mic_sources.set_margin_left(24)
 
-        self.mute_checkbutton = Gtk.CheckButton("Mute (soon)")
+        self.mute_checkbutton = Gtk.CheckButton("Mute")
         self.mute_checkbutton.connect("toggled", self.on_mute_toggle)
 
         self.output_sinks = Gtk.ComboBoxText()
