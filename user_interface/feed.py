@@ -62,6 +62,7 @@ class NewFeed:
         self.hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
 
         self.menu_revealer = self._build_revealer()
+        self.vumeter_revealer = self._build_revealer()
 
         self.video_monitor = Gtk.DrawingArea()
         self.video_monitor.set_margin_left(6)
@@ -82,7 +83,8 @@ class NewFeed:
         self.video_menu = VideoMenu(
             self.pipeline, self.menu_revealer, self.placeholder_pipeline)
         self.audio_menu = AudioMenu(
-            self.pipeline, self.menu_revealer, self.placeholder_pipeline)
+            self.pipeline, self.menu_revealer, self.vumeter_revealer,
+            self.placeholder_pipeline)
         self.stream_menu = StreamMenu(self.pipeline, self.menu_revealer)
         self.store_menu = StoreMenu(self.pipeline, self.menu_revealer)
         self.settings_menu = SettingsMenu(self.pipeline, self.menu_revealer)
@@ -99,10 +101,8 @@ class NewFeed:
         self.controls.overlay_container.add(self.video_monitor)
         self.controls.display_controls()
 
-        self.vumeter_box = self._build_vumeter()
-        self.controls.overlay_container.add_overlay(self.vumeter_box)
-
         self.hbox.pack_start(self.controls.overlay_container, True, True, 0)
+        self.hbox.pack_start(self.vumeter_revealer, False, False, 0)
         self.hbox.pack_start(self.menu_revealer, False, False, 0)
 
     def set_xid(self):
@@ -150,27 +150,6 @@ class NewFeed:
         revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
         revealer.set_transition_duration(250)
         return revealer
-
-    def _build_vumeter(self):
-        """
-        """
-        # TODO: True stereo feed has to be implemented.
-        self.vumeter_left = Gtk.ProgressBar()
-        self.vumeter_left.set_orientation(Gtk.Orientation.VERTICAL)
-        self.vumeter_left.set_inverted(True)
-        self.vumeter_right = Gtk.ProgressBar()
-        self.vumeter_right.set_orientation(Gtk.Orientation.VERTICAL)
-        self.vumeter_right.set_inverted(True)
-
-        vumeter_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-        vumeter_hbox.set_halign(Gtk.Align.END)
-        vumeter_hbox.set_margin_top(6)
-        vumeter_hbox.set_margin_bottom(6)
-        _pack_widgets(vumeter_hbox,
-                      self.vumeter_left,
-                      self.vumeter_right)
-
-        return vumeter_hbox
 
     def iec_scale(self, db):
         """
@@ -274,15 +253,15 @@ class NewFeed:
             if str(Gst.Structure.get_name(s)) == "level":
                 percentage = self.iec_scale(s.get_value("rms")[0])
                 # This is not a true stereo signal.
-                self.vumeter_left.set_fraction(percentage)
-                self.vumeter_right.set_fraction(percentage)
+                self.audio_menu.vumeter_left.set_fraction(percentage)
+                self.audio_menu.vumeter_right.set_fraction(percentage)
 
         t = message.type
         if t == Gst.MessageType.EOS:
             self.streampipe.set_state(Gst.State.NULL)
         elif t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
-            print ('%s' % err, debug)  # DEBUG
+            print ('%s' % err, "\nDEBUG LINE", debug)  # DEBUG
             # Watching for feed loss during streaming:
             #if '(651)' not in debug:
             #    # The error is not a socket error.
@@ -1060,11 +1039,14 @@ class VideoMenu(AbstractMenu):
 class AudioMenu(AbstractMenu):
     """
     """
-    def __init__(self, pipeline, menu_revealer, placeholder_pipeline=None):
+    def __init__(self, pipeline, menu_revealer, vumeter_revealer,
+                 placeholder_pipeline=None):
         super().__init__(pipeline, menu_revealer, placeholder_pipeline)
         self.sources_list = []
         self.sinks_list = []
+        self.vumeter_revealer =  vumeter_revealer
         self.audio_vbox = self._build_audio_vbox()
+        self._build_vumeter_box()
 
         self.current_audio_source = None
         self.requested_audio_source = None
@@ -1084,7 +1066,6 @@ class AudioMenu(AbstractMenu):
 
         self.mute_checkbutton = Gtk.CheckButton("Mute (soon)")
         self.mute_checkbutton.connect("toggled", self.on_mute_toggle)
-        self.mute_checkbutton.set_sensitive(False)
 
         self.output_sinks = Gtk.ComboBoxText()
         index = 0
@@ -1114,6 +1095,29 @@ class AudioMenu(AbstractMenu):
                       separator)
         self._make_scrolled_window(vbox)
         return vbox
+
+    def _build_vumeter_box(self):
+        """
+        """
+        # TODO: True stereo feed has to be implemented.
+        self.vumeter_left = Gtk.ProgressBar()
+        self.vumeter_left.set_orientation(Gtk.Orientation.VERTICAL)
+        self.vumeter_left.set_inverted(True)
+        self.vumeter_right = Gtk.ProgressBar()
+        self.vumeter_right.set_orientation(Gtk.Orientation.VERTICAL)
+        self.vumeter_right.set_inverted(True)
+
+        self.vumeter_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+        self.vumeter_hbox.set_halign(Gtk.Align.END)
+        self.vumeter_hbox.set_margin_top(6)
+        self.vumeter_hbox.set_margin_right(6)
+        self.vumeter_hbox.set_margin_bottom(6)
+        _pack_widgets(self.vumeter_hbox,
+                      self.vumeter_left,
+                      self.vumeter_right)
+
+        self.vumeter_revealer.add(self.vumeter_hbox)
+        self.vumeter_hbox.show_all()
 
     def get_properties(self):
         """
@@ -1175,12 +1179,14 @@ class AudioMenu(AbstractMenu):
         """
         Mute audio input in the pipeline. This take effect immediatly.
         """
-        raise NotImplementedError
+        self.pipeline.mute_audio_input(self.mute_checkbutton.get_active())
 
     def on_confirm_clicked(self, widget):
         if self.requested_audio_source != self.current_audio_source:
             self.pipeline.set_input_source(self.requested_audio_source)
             self.current_audio_source = self.requested_audio_source
+            if not self.vumeter_revealer.get_child_revealed():
+                self.vumeter_revealer.set_reveal_child(True)
 
         #if self.requested_audio_sink != self.current_audio_sink:  # DEV
         #    self.pipeline.set_speaker_sink(self.requested_audio_sink)  # DEV

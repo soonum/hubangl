@@ -349,6 +349,14 @@ class Pipeline:
         if alpha:
             self.image_overlay.set_property("alpha", alpha)
 
+    def mute_audio_input(self, value):
+        """
+        Mute or unmute the audio input source based on ``value``.
+
+        :param value: :class:`bool`
+        """
+        self.source_volume.set_property("mute", value)
+
     def get_speaker_sinks(self):
         """
         Get audio sinks device names.
@@ -1010,7 +1018,7 @@ class Pipeline:
             "queue", "queue_speakersink", tee_output=True)
         queue_speakersink.set_related_tee(tee_audio_source)
         # Volume:
-        source_volume = GstElement("volume", "source_volume")
+        self.source_volume = GstElement("volume", "source_volume")
         self.speaker_volume = GstElement("volume", "speaker_volume")
         self.speaker_volume.set_property("mute", True)  # Muted by default
         # VU-meter:
@@ -1032,7 +1040,7 @@ class Pipeline:
         self.set_default_speaker_sink()
         self.speaker_sink.set_property("sync", False)
 
-        source_branch = (source_volume, audiolevel, tee_audio_source)
+        source_branch = (self.source_volume, audiolevel, tee_audio_source)
         output_branch_encoding = (vorbis_encoder, tee_audio_process)
         output_branch_muxing = (queue_muxer_av1, ogg_muxer, tee_output_audio)
         output_branch_storing = (queue_audio_filesink,)
