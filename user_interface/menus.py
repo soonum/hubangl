@@ -541,9 +541,8 @@ class AudioMenu(AbstractMenu):
         self.mic_sources.connect("changed", self.on_input_change)
         self.mic_sources.set_margin_left(24)
 
-        self.mute_checkbutton = Gtk.CheckButton("Mute (soon)")
+        self.mute_checkbutton = Gtk.CheckButton("Mute")
         self.mute_checkbutton.connect("toggled", self.on_mute_toggle)
-        self.mute_checkbutton.set_sensitive(False)
 
         self.output_sinks = Gtk.ComboBoxText()
         index = 0
@@ -634,7 +633,7 @@ class AudioMenu(AbstractMenu):
         """
         Mute audio input in the pipeline. This take effect immediatly.
         """
-        raise NotImplementedError
+        self.pipeline.mute_audio_input(widget.get_active())
 
     def on_confirm_clicked(self, widget):
         if self.requested_audio_source != self.current_audio_source:
