@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HUBAngl.  If not, see <http://www.gnu.org/licenses/>.
 #
-# Copyright (c) 2016 David Testé
+# Copyright (c) 2016-2017 David Testé
 
 from gi.repository import Gst
 
