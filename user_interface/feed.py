@@ -23,7 +23,7 @@ import os
 import time
 
 import gi
-gi.require_version("Gst", "1.0")  # NOQA
+gi.require_version("GstVideo", "1.0")  # NOQA
 from gi.repository import Gst
 from gi.repository import Gtk
 from gi.repository import Gdk

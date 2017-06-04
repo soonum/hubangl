@@ -19,6 +19,9 @@
 #
 # Copyright (c) 2016-2017 David Testé
 
+import gi
+gi.require_version("Gst", "1.0")  # NOQA
+gi.require_version('Gtk', '3.0')  # NOQA
 from gi.repository import Gst
 from gi.repository import Gtk
 
@@ -26,6 +29,6 @@ import user_interface.main_window
 
 
 if __name__ == "__main__":
-    Gst.init()
+    Gst.init(None)
     user_interface.main_window.MainWindow()
     Gtk.main()
