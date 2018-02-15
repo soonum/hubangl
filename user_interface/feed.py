@@ -32,6 +32,7 @@ from gi.repository import GstVideo
 from gi.repository import GObject
 
 from backend import process
+from user_interface import audio_displays
 
 
 AUDIO_VIDEO_STREAM = process.AUDIO_VIDEO_STREAM
@@ -99,8 +100,10 @@ class NewFeed:
         self.controls.overlay_container.add(self.video_monitor)
         self.controls.display_controls()
 
-        self.vumeter_box = self._build_vumeter()
-        self.controls.overlay_container.add_overlay(self.vumeter_box)
+        self.audio_level_display = audio_displays.AudioLevelDisplay(
+            Gtk.DrawingArea())
+        self.audio_level_box = self._build_audio_level_box()
+        self.controls.overlay_container.add_overlay(self.audio_level_box)
 
         self.hbox.pack_start(self.controls.overlay_container, True, True, 0)
         self.hbox.pack_start(self.menu_revealer, False, False, 0)
@@ -151,51 +154,18 @@ class NewFeed:
         revealer.set_transition_duration(250)
         return revealer
 
-    def _build_vumeter(self):
+    def _build_audio_level_box(self):
         """
         """
-        # TODO: True stereo feed has to be implemented.
-        self.vumeter_left = Gtk.ProgressBar()
-        self.vumeter_left.set_orientation(Gtk.Orientation.VERTICAL)
-        self.vumeter_left.set_inverted(True)
-        self.vumeter_right = Gtk.ProgressBar()
-        self.vumeter_right.set_orientation(Gtk.Orientation.VERTICAL)
-        self.vumeter_right.set_inverted(True)
+        hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+        hbox.set_halign(Gtk.Align.END)
+        hbox.set_margin_top(6)
+        hbox.set_margin_bottom(6)
+        # Hide the box until an audio signal is received
+        hbox.set_no_show_all(True)
+        _pack_widgets(hbox, self.audio_level_display.drawing_area)
 
-        vumeter_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-        vumeter_hbox.set_halign(Gtk.Align.END)
-        vumeter_hbox.set_margin_top(6)
-        vumeter_hbox.set_margin_bottom(6)
-        _pack_widgets(vumeter_hbox,
-                      self.vumeter_left,
-                      self.vumeter_right)
-
-        return vumeter_hbox
-
-    def iec_scale(self, db):
-        """
-        Returns the meter deflection percentage given a db value.
-        """
-        percentage = 0.0
-
-        if db < -70.0:
-            percentage = 0.0
-        elif db < -60.0:
-            percentage = (db + 70.0) * 0.25
-        elif db < -50.0:
-            percentage = (db + 60.0) * 0.5 + 2.5
-        elif db < -40.0:
-            percentage = (db + 50.0) * 0.75 + 7.5
-        elif db < -30.0:
-            percentage = (db + 40.0) * 1.5 + 15.0
-        elif db < -20.0:
-            percentage = (db + 30.0) * 2.0 + 30.0
-        elif db < 0.0:
-            percentage = (db + 20.0) * 2.5 + 50.0
-        else:
-            percentage = 100.0
-
-        return percentage / 100
+        return hbox
 
     def on_sync_message(self, bus, message):
         if message.get_structure().get_name() == 'prepare-window-handle':
@@ -272,10 +242,14 @@ class NewFeed:
         s = Gst.Message.get_structure(message)
         if message.type == Gst.MessageType.ELEMENT:
             if str(Gst.Structure.get_name(s)) == "level":
-                percentage = self.iec_scale(s.get_value("rms")[0])
-                # This is not a true stereo signal.
-                self.vumeter_left.set_fraction(percentage)
-                self.vumeter_right.set_fraction(percentage)
+                if not self.audio_level_box.get_visible():
+                    self.audio_level_box.set_no_show_all(False)
+                    self.audio_level_box.show_all()
+
+                rms = s.get_value("rms")
+                peak = s.get_value("peak")
+                decay = s.get_value("decay")
+                self.audio_level_display.on_level(rms, peak, decay)
 
         t = message.type
         if t == Gst.MessageType.EOS:
