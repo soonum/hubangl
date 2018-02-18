@@ -26,6 +26,7 @@ from gi.repository import Gdk
 
 from user_interface import feed
 from user_interface import images
+from user_interface import utils
 
 
 def _pack_widgets(box, *widgets):
@@ -304,59 +305,6 @@ class MainWindow:
         else:
             raise ValueError
 
-    def build_confirm_dialog(self, message_type, message_label,
-                             on_signal=None, callback=None):
-        """
-        Create a :class:`Gtk.MessageDialog` asking user for confirmation.
-
-        :param message_type: :class:`Gtk.MessageType`
-        :param message_label: text displayed to user as :class`str`
-        :param on_signal: Gtk signal as :class:`str`
-        :param callback: callback to connect to ``signal``
-        """
-        confirm_dialog = Gtk.MessageDialog(
-            message_type=message_type, message_format=message_label)
-        confirm_dialog.set_icon_from_file(self.images.logo_favicon_path)
-        confirm_dialog.set_title("Confirmation")
-        confirm_dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
-        confirm_dialog.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT)
-        confirm_dialog.set_modal(True)
-        if on_signal and callback:
-            confirm_dialog.connect(on_signal, callback)
-
-        confirm_dialog.run()
-
-    def build_error_dialog(self, message_label, on_signal=None, callback=None):
-        """
-        Create a :class:`Gtk.MessageDialog` to notifiy user that an error
-        occurred.
-
-        :param message_label: text displayed to user as :class`str`
-        :param on_signal: Gtk signal as :class:`str`
-        :param callback: callback to connect to ``signal``
-        """
-        error_dialog = Gtk.MessageDialog(
-            message_type=Gtk.MessageType.ERROR, message_format=message_label)
-        error_dialog.set_icon_from_file(self.images.logo_favicon_path)
-        error_dialog.set_title("Error")
-        error_dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-        error_dialog.set_modal(True)
-        if on_signal and callback:
-            error_dialog.connect(on_signal, callback)
-        else:
-            error_dialog.connect("response", self.default_error_callback)
-
-        error_dialog.run()
-
-    def default_error_callback(self, dialog, response_id):
-        """
-        Default callback called when there is no callback provided to
-        :meth:`build_error_dialog`.
-        """
-        if (response_id == Gtk.ResponseType.CLOSE
-                or response_id == Gtk.ResponseType.DELETE_EVENT):
-            dialog.destroy()
-
     def change_application(self, new_application, new_application_container):
         """
         """
@@ -439,10 +387,10 @@ class MainWindow:
         if response_id == Gtk.ResponseType.ACCEPT:
             confirmation_message = "Current settings will be overwritten."
             if self._need_load_confirmation():
-                self.build_confirm_dialog(Gtk.MessageType.WARNING,
-                                          confirmation_message,
-                                          on_signal="response",
-                                          callback=self.on_load_confirmation)
+                utils.build_confirm_dialog(Gtk.MessageType.WARNING,
+                                           confirmation_message,
+                                           on_signal="response",
+                                           callback=self.on_load_confirmation)
             else:
                 self.load_confirmed = True
 
@@ -455,11 +403,11 @@ class MainWindow:
                                 **loaded_session)
                     except ValueError:
                         message = "An error occurred during file decoding."
-                        self.build_error_dialog(message)
+                        utils.build_error_dialog(message)
                     except Exception:
                         # An error occurred while setting properties
                         message = "An error occurred during file loading."
-                        self.build_error_dialog(message)
+                        utils.build_error_dialog(message)
                         raise
 
         dialog.destroy()
