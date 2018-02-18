@@ -26,50 +26,55 @@ from user_interface import images
 images = images.HubanglImages()
 
 
-def build_confirm_dialog(message_type, message_label,
+def build_confirm_dialog(message_type, primary_text, secondary_text=None,
                          on_signal=None, callback=None):
     """
     Create a :class:`Gtk.MessageDialog` asking user for confirmation.
 
     :param message_type: :class:`Gtk.MessageType`
-    :param message_label: text displayed to user as :class`str`
+    :param primary_text: primary text displayed to user as :class`str`
+    :param secondary_text: secondary text displayed to user as :class`str`
     :param on_signal: Gtk signal as :class:`str`
     :param callback: callback to connect to ``signal``
     """
-    confirm_dialog = Gtk.MessageDialog(
-        message_type=message_type, message_format=message_label)
-    confirm_dialog.set_icon_from_file(images.logo_favicon_path)
-    confirm_dialog.set_title("Confirmation")
-    confirm_dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
-    confirm_dialog.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT)
-    confirm_dialog.set_modal(True)
+    dialog = Gtk.MessageDialog(
+        message_type=message_type, message_format=primary_text)
+    dialog.set_icon_from_file(images.logo_favicon_path)
+    dialog.set_title("Confirmation")
+    dialog.format_secondary_text(secondary_text)
+    dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+    dialog.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT)
+    dialog.set_modal(True)
     if on_signal and callback:
-        confirm_dialog.connect(on_signal, callback)
+        dialog.connect(on_signal, callback)
 
-    confirm_dialog.run()
+    dialog.run()
 
 
-def build_error_dialog(message_label, on_signal=None, callback=None):
+def build_error_dialog(primary_text, secondary_text=None, on_signal=None,
+                       callback=None):
     """
     Create a :class:`Gtk.MessageDialog` to notifiy user that an error
     occurred.
 
-    :param message_label: text displayed to user as :class`str`
+    :param primary_text: primary text displayed to user as :class`str`
+    :param secondary_text: secondary text displayed to user as :class`str`
     :param on_signal: Gtk signal as :class:`str`
     :param callback: callback to connect to ``signal``
     """
-    error_dialog = Gtk.MessageDialog(
-        message_type=Gtk.MessageType.ERROR, message_format=message_label)
-    error_dialog.set_icon_from_file(images.logo_favicon_path)
-    error_dialog.set_title("Error")
-    error_dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
-    error_dialog.set_modal(True)
+    dialog = Gtk.MessageDialog(
+        message_type=Gtk.MessageType.ERROR, message_format=primary_text)
+    dialog.set_icon_from_file(images.logo_favicon_path)
+    dialog.set_title("Error")
+    dialog.format_secondary_text(secondary_text)
+    dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+    dialog.set_modal(True)
     if on_signal and callback:
-        error_dialog.connect(on_signal, callback)
+        dialog.connect(on_signal, callback)
     else:
-        error_dialog.connect("response", default_error_callback)
+        dialog.connect("response", default_error_callback)
 
-    error_dialog.run()
+    dialog.run()
 
 
 def default_error_callback(dialog, response_id):
