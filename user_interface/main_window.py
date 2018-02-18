@@ -29,21 +29,6 @@ from user_interface import images
 from user_interface import utils
 
 
-def _pack_widgets(box, *widgets):
-        """
-        Pack each ``widget`` in ``box``.
-
-        FIXME: Documentation to complete.
-
-        TODO: Add kwargs for managing the 3 last args of pack_start.
-
-        :param box: :class:`Gtk.HBox` or :class:`Gtk.VBox`
-        :param widgets: Gtk widgets
-        """
-        for widget in widgets:
-            box.pack_start(widget, False, False, 0)
-
-
 class MainWindow:
     """
     Main window of user interface.
@@ -265,7 +250,7 @@ class MainWindow:
                 icon = image
             label = Gtk.Label(name)
             # accelerator = ?
-            _pack_widgets(hbox, icon, label)
+            utils.pack_widgets(hbox, icon, label)
             menu_item.add(hbox)
             # use pack_end() to add an accelerator in a menu item with an image
         else:
@@ -549,9 +534,9 @@ class ControlRoomApp(BaseApp):
         self.new_feed_vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
         self.new_feed_vbox.set_halign(Gtk.Align.CENTER)
         self.new_feed_vbox.set_valign(Gtk.Align.CENTER)
-        _pack_widgets(self.new_feed_vbox,
-                      self.placeholder_image,
-                      self.new_feed_button)
+        utils.pack_widgets(self.new_feed_vbox,
+                           self.placeholder_image,
+                           self.new_feed_button)
 
         self._grid = Gtk.Grid()
         self._grid.set_row_homogeneous(True)
@@ -577,9 +562,9 @@ class StandaloneApp(BaseApp):
         self.new_feed_vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
         self.new_feed_vbox.set_halign(Gtk.Align.CENTER)
         self.new_feed_vbox.set_valign(Gtk.Align.CENTER)
-        _pack_widgets(self.new_feed_vbox,
-                      self.placeholder_image,
-                      self.new_feed_button)
+        utils.pack_widgets(self.new_feed_vbox,
+                           self.placeholder_image,
+                           self.new_feed_button)
 
 
 class MonitoringApp(BaseApp):
@@ -595,9 +580,9 @@ class MonitoringApp(BaseApp):
         self.new_feed_vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
         self.new_feed_vbox.set_halign(Gtk.Align.CENTER)
         self.new_feed_vbox.set_valign(Gtk.Align.CENTER)
-        _pack_widgets(self.new_feed_vbox,
-                      self.placeholder_image,
-                      self.new_feed_button)
+        utils.pack_widgets(self.new_feed_vbox,
+                           self.placeholder_image,
+                           self.new_feed_button)
 
 
 if __name__ == "__main__":

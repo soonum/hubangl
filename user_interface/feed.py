@@ -43,22 +43,6 @@ VIDEO_ONLY_STREAM = process.VIDEO_ONLY_STREAM
 AUDIO_ONLY_STREAM = process.AUDIO_ONLY_STREAM
 
 
-def _pack_widgets(box, *widgets):
-    """
-    Pack each ``widget`` in ``box``.
-
-    FIXME: Documentation to complete.
-
-    TODO: Add kwargs for managing the 3 last args of pack_start.
-          ``expand``, ``fill``, ``padding``
-
-    :param box: :class:`Gtk.HBox` or :class:`Gtk.VBox`
-    :param widgets: Gtk widgets
-    """
-    for widget in widgets:
-        box.pack_start(widget, False, False, 0)
-
-
 class NewFeed:
     """
     """
@@ -166,7 +150,7 @@ class NewFeed:
         hbox.set_margin_bottom(6)
         # Hide the box until an audio signal is received
         hbox.set_no_show_all(True)
-        _pack_widgets(hbox, self.audio_level_display.drawing_area)
+        utils.pack_widgets(hbox, self.audio_level_display.drawing_area)
 
         return hbox
 
@@ -298,7 +282,7 @@ class ControlBar:
         self.toolbar = self._build_toolbar()
 
     def display_controls(self):
-        _pack_widgets(self.controlbox, self.toolbar)
+        utils.pack_widgets(self.controlbox, self.toolbar)
         self.overlay_container.add_overlay(self.controlbox)
 
     def _build_toolbutton(self, name, icon,
@@ -612,8 +596,8 @@ class AbstractMenu:
         self.port_entry.connect("changed", self.on_port_change)
 
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        _pack_widgets(hbox, self.host_entry, Gtk.Label(":"),
-                      self.port_entry)
+        utils.pack_widgets(hbox, self.host_entry, Gtk.Label(":"),
+                           self.port_entry)
 
         return hbox
 
@@ -684,7 +668,7 @@ class AbstractMenu:
 
         hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
         hbox.set_margin_left(24)
-        _pack_widgets(hbox, text_label, combo_box)
+        utils.pack_widgets(hbox, text_label, combo_box)
 
         return (radio_button, hbox, combo_box)
 
@@ -719,10 +703,10 @@ class AbstractMenu:
              radio_group=self.audiovideo_radiobutton)
 
         radiobutton_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        _pack_widgets(radiobutton_hbox,
-                      self.audiovideo_radiobutton,
-                      self.video_radiobutton,
-                      self.audio_radiobutton)
+        utils.pack_widgets(radiobutton_hbox,
+                           self.audiovideo_radiobutton,
+                           self.video_radiobutton,
+                           self.audio_radiobutton)
 
         return radiobutton_hbox
 
@@ -740,17 +724,17 @@ class AbstractMenu:
 
         summary_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         summary_hbox.set_margin_top(6)
-        _pack_widgets(summary_hbox,
-                      self.full_filename_label, settings_button)
+        utils.pack_widgets(summary_hbox,
+                           self.full_filename_label, settings_button)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         separator.set_margin_top(6)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        _pack_widgets(vbox,
-                      summary_hbox,
-                      self._revealer,
-                      separator)
+        utils.pack_widgets(vbox,
+                           summary_hbox,
+                           self._revealer,
+                           separator)
         return vbox
 
     def _get_format_hbox(self):
@@ -893,14 +877,14 @@ class VideoMenu(AbstractMenu):
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
-        _pack_widgets(vbox,
-                      title,
-                      self.usb_radiobutton,
-                      self.usb_sources,
-                      self.ip_radiobutton,
-                      self.address_entries,
-                      self.video_confirm_button,
-                      separator)
+        utils.pack_widgets(vbox,
+                           title,
+                           self.usb_radiobutton,
+                           self.usb_sources,
+                           self.ip_radiobutton,
+                           self.address_entries,
+                           self.video_confirm_button,
+                           separator)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -1027,13 +1011,13 @@ class AudioMenu(AbstractMenu):
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
-        _pack_widgets(vbox,
-                      title,
-                      self.mic_sources,
-                      self.mute_checkbutton,
-                      self.output_sinks,
-                      self.audio_confirm_button,
-                      separator)
+        utils.pack_widgets(vbox,
+                           title,
+                           self.mic_sources,
+                           self.mute_checkbutton,
+                           self.output_sinks,
+                           self.audio_confirm_button,
+                           separator)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -1137,11 +1121,11 @@ class StreamMenu(AbstractMenu):
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
-        _pack_widgets(vbox,
-                      title,
-                      self.settings_revealer,
-                      separator,
-                      self.stream_add_button)
+        utils.pack_widgets(vbox,
+                           title,
+                           self.settings_revealer,
+                           separator,
+                           self.stream_add_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -1199,13 +1183,13 @@ class StreamMenu(AbstractMenu):
             address_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             address_label = Gtk.Label("Address :    ")
             self.address_entries = self._build_address_entries()
-            _pack_widgets(address_hbox, address_label, self.address_entries)
+            utils.pack_widgets(address_hbox, address_label, self.address_entries)
 
             mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             mountpoint_label = Gtk.Label("Mountpoint : ")
             self.mountpoint_entry = Gtk.Entry()
             self.mountpoint_entry.connect("changed", self.on_mountpoint_change)
-            _pack_widgets(
+            utils.pack_widgets(
                 mountpoint_hbox, mountpoint_label, self.mountpoint_entry)
 
             password_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
@@ -1214,7 +1198,7 @@ class StreamMenu(AbstractMenu):
             self.password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
             self.password_entry.set_visibility(False)
             self.password_entry.connect("changed", self.on_password_change)
-            _pack_widgets(password_hbox, password_label, self.password_entry)
+            utils.pack_widgets(password_hbox, password_label, self.password_entry)
 
             radiobutton_hbox = self._build_format_group()
             # FIXME: .mkv format is not supported by shout2send Gst element.
@@ -1229,7 +1213,7 @@ class StreamMenu(AbstractMenu):
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             vbox.set_margin_right(6)
-            _pack_widgets(vbox,
+            utils.pack_widgets(vbox,
                           address_hbox,
                           mountpoint_hbox,
                           password_hbox,
@@ -1377,11 +1361,11 @@ class StoreMenu(AbstractMenu):
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
-        _pack_widgets(vbox,
-                      title,
-                      self.settings_revealer,
-                      separator,
-                      self.store_add_button)
+        utils.pack_widgets(vbox,
+                           title,
+                           self.settings_revealer,
+                           separator,
+                           self.store_add_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -1442,16 +1426,16 @@ class StoreMenu(AbstractMenu):
             self.name_entry.set_placeholder_text("Type a filename")
             self.name_entry.connect("changed", self.on_entry_change)
             name_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            _pack_widgets(name_hbox, name_label, self.name_entry)
+            utils.pack_widgets(name_hbox, name_label, self.name_entry)
 
             self.automatic_naming_checkbutton = Gtk.CheckButton()
             self.automatic_naming_checkbutton.set_active(True)
             self.automatic_naming_checkbutton.set_sensitive(False)  # DEV
             automatic_naming_label = Gtk.Label("Make Unique filename")
             automatic_naming_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            _pack_widgets(automatic_naming_hbox,
-                          self.automatic_naming_checkbutton,
-                          automatic_naming_label)
+            utils.pack_widgets(automatic_naming_hbox,
+                               self.automatic_naming_checkbutton,
+                               automatic_naming_label)
 
             radiobutton_hbox = self._build_format_group()
 
@@ -1461,13 +1445,13 @@ class StoreMenu(AbstractMenu):
             self.store_confirm_button.set_label("Create")
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            _pack_widgets(vbox,
-                          self.folder_chooser_button,
-                          name_hbox,
-                          automatic_naming_hbox,
-                          radiobutton_hbox,
-                          self._audiovideo_format_hbox,
-                          self.store_confirm_button)
+            utils.pack_widgets(vbox,
+                               self.folder_chooser_button,
+                               name_hbox,
+                               automatic_naming_hbox,
+                               radiobutton_hbox,
+                               self._audiovideo_format_hbox,
+                               self.store_confirm_button)
             return vbox
 
         def _get_formatted_timestamp(self):
@@ -1657,16 +1641,16 @@ class SettingsMenu(AbstractMenu):
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
-        _pack_widgets(vbox,
-                      title,
-                      self.text_overlay_entry,
-                      self.text_position_combobox,
-                      self.hide_text_checkbutton,
-                      self.image_chooser_button,
-                      self.image_position_combobox,
-                      self.hide_image_checkbutton,
-                      self.settings_confirm_button,
-                      separator)
+        utils.pack_widgets(vbox,
+                           title,
+                           self.text_overlay_entry,
+                           self.text_position_combobox,
+                           self.hide_text_checkbutton,
+                           self.image_chooser_button,
+                           self.image_position_combobox,
+                           self.hide_image_checkbutton,
+                           self.settings_confirm_button,
+                           separator)
         self._make_scrolled_window(vbox)
         return vbox
 

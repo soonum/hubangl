@@ -26,6 +26,22 @@ from user_interface import images
 images = images.HubanglImages()
 
 
+def pack_widgets(box, *widgets):
+    """
+    Pack each ``widget`` in ``box``.
+
+    FIXME: Documentation to complete.
+
+    TODO: Add kwargs for managing the 3 last args of pack_start.
+          ``expand``, ``fill``, ``padding``
+
+    :param box: :class:`Gtk.HBox` or :class:`Gtk.VBox`
+    :param widgets: Gtk widgets
+    """
+    for widget in widgets:
+        box.pack_start(widget, False, False, 0)
+
+
 def build_confirm_dialog(message_type, primary_text, secondary_text=None,
                          on_signal=None, callback=None):
     """
