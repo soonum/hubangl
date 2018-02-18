@@ -492,7 +492,7 @@ class BaseApp:
     """
     def __init__(self, main_window, mode, images):
         self.main_window = main_window
-        self.feed = feed.NewFeed(mode, images)
+        self.feed = feed.Feed(mode, images)
         self.container = self.feed.hbox
 
     def make_app(self):  # DEBUG

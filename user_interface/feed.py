@@ -33,7 +33,7 @@ from user_interface import menus
 from user_interface import utils
 
 
-class NewFeed:
+class Feed:
     """
     """
     def __init__(self, mode, images):
