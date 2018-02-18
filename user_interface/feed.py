@@ -20,6 +20,7 @@
 
 import abc
 import os
+import socket
 import time
 
 import gi
@@ -30,9 +31,11 @@ from gi.repository import Gdk
 from gi.repository import GdkX11
 from gi.repository import GstVideo
 from gi.repository import GObject
+import ipaddress
 
 from backend import process
 from user_interface import audio_displays
+from user_interface import utils
 
 
 AUDIO_VIDEO_STREAM = process.AUDIO_VIDEO_STREAM
@@ -592,36 +595,26 @@ class AbstractMenu:
 
         return button
 
-    def _build_ipv4_entries(self):
+    def _build_address_entries(self):
         """
         """
-        self.ipv4_field1 = Gtk.Entry()
-        self.ipv4_field2 = Gtk.Entry()
-        self.ipv4_field3 = Gtk.Entry()
-        self.ipv4_field4 = Gtk.Entry()
-
-        for field in (self.ipv4_field1, self.ipv4_field2,
-                      self.ipv4_field3, self.ipv4_field4):
-            field.set_max_length(3)
-            field.set_width_chars(3)
-            if hasattr(field, "set_max_width_chars"):
-                field.set_max_width_chars(3)
-            field.set_input_purpose(Gtk.InputPurpose.DIGITS)
+        self.host_entry = Gtk.Entry()
+        self.host_entry.set_placeholder_text("hostname or IP address")
+        self.host_entry.connect("changed", self.on_host_change)
 
         self.port_entry = Gtk.Entry()
         self.port_entry.set_max_length(5)
         self.port_entry.set_width_chars(5)
         if hasattr(self.port_entry, "set_max_width_chars"):
             self.port_entry.set_max_width_chars(5)
+        self.port_entry.set_placeholder_text("port")
         self.port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
+        self.port_entry.connect("changed", self.on_port_change)
 
         hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        _pack_widgets(hbox,
-                      self.ipv4_field1, Gtk.Label("."),
-                      self.ipv4_field2, Gtk.Label("."),
-                      self.ipv4_field3, Gtk.Label("."),
-                      self.ipv4_field4, Gtk.Label(":"),
+        _pack_widgets(hbox, self.host_entry, Gtk.Label(":"),
                       self.port_entry)
+
         return hbox
 
     @abc.abstractmethod
@@ -640,50 +633,32 @@ class AbstractMenu:
         :param kargs: :class:`dict` containing properties related to this menu
         """
 
-    def _build_ipv6_entry(self):
+    def get_ip_address(self):
         """
-        """
-        raise NotImplementedError
+        Resolve the host and get the port to connect to.
 
-    def get_ipv4_address(self):
+        :return: address, port
         """
-        """
-        ip_fields_values = []
-        for field in (self.ipv4_field1, self.ipv4_field2,
-                      self.ipv4_field3, self.ipv4_field4):
-            text = field.get_text()
-            if not text:
-                raise TypeError
-                break
-            ip_fields_values.append(text)
-        else:
-            port_value = self.port_entry.get_text()
-            if not port_value:
-                raise TypeError
-            else:
-                ip_address = ".".join(ip_fields_values)
-                port = int(port_value)
-                return ip_address, port
+        try:
+            port = int(self.port_entry.get_text())
+        except ValueError:
+            utils.build_error_dialog("Bad input",
+                                     "Port must contains only digits")
+            raise
 
-    def set_ip_fields(self, ip_entries, ip_address, port):
-        """
-        Set entries relative to an IP address to ``ip_address`` and ``port``.
+        host_ip_value = self.host_entry.get_text()
+        try:
+            address = str(ipaddress.ip_address(host_ip_value))
+        except ValueError:
+            try:
+                info = socket.getaddrinfo(host_ip_value, port,
+                                          proto=socket.IPPROTO_TCP)
+                address = info[0][4][0]
+            except socket.gaierror:
+                utils.build_error_dialog("Bad input", "Hostname is not known")
+                raise
 
-        :param ip_entries: container containing entries
-        :param ip_address: full ip address as :class:`str`
-        :param port: port to connect to as :class:`int`
-        """
-        if "." in ip_address:
-            # This is an IPv4 address
-            ip_fields_values = ip_address.split(".")
-            for index, field in enumerate((self.ipv4_field1, self.ipv4_field2,
-                                           self.ipv4_field3, self.ipv4_field4)):
-                field.set_text(ip_fields_values[index])
-            self.port_entry.set_text(str(port))
-        elif ":" in ip_address:
-            # This is an IPv6 address
-            ip_fields_values = ip_address.split(":")
-            # TODO: populate this case once IPv6 handling is implemented.
+        return address, port
 
     def _build_format_section(self, radio_button_label, format_labels,
                               callback_radio=None, callback_combo=None,
@@ -858,8 +833,11 @@ class AbstractMenu:
     def on_comboxboxtext_change(self, widget):
         raise NotImplementedError
 
-    def on_ipv46_toggle(self, widget):
-        pass
+    def on_host_change(self, widget):
+        raise NotImplementedError
+
+    def on_port_change(self, widget):
+        raise NotImplementedError
 
 
 class VideoMenu(AbstractMenu):
@@ -900,28 +878,11 @@ class VideoMenu(AbstractMenu):
         self.ip_radiobutton.connect("toggled", self.on_commtype_toggle)
         # TODO: Remove the next line once IP camera are handled in a pipeline.
         self.ip_radiobutton.set_sensitive(False)
-        # ---------------------------------
 
-        ipv46_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        ipv46_hbox.set_margin_left(24)
+        self.address_entries = self._build_address_entries()
+        self.address_entries.set_margin_left(24)
 
-        self.ipv4_radiobutton = Gtk.RadioButton("v4")
-        self.ipv4_radiobutton.set_active(True)
-        self.ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
-
-        self.ipv6_radiobutton = Gtk.RadioButton("v6", group=self.ipv4_radiobutton)
-        self.ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
-        _pack_widgets(ipv46_hbox, self.ipv4_radiobutton, self.ipv6_radiobutton)
-
-        self.ipv4_entries = self._build_ipv4_entries()
-        self.ipv4_entries.set_margin_left(24)
-
-        # TODO: Implement ipv6_entry
-        # ipv6_entry = self._build_ipv6_entry()
-        # ipv6_entry.set_margin_left(24)
-
-        self.video_ip_widgets.extend(
-            (self.ipv4_radiobutton, self.ipv6_radiobutton, self.ipv4_entries))
+        self.video_ip_widgets.append(self.address_entries)
         self._make_widget_unavailable(*self.video_ip_widgets)
 
         self.video_confirm_button = self._build_confirm_changes_button(
@@ -937,8 +898,7 @@ class VideoMenu(AbstractMenu):
                       self.usb_radiobutton,
                       self.usb_sources,
                       self.ip_radiobutton,
-                      ipv46_hbox,
-                      self.ipv4_entries,
+                      self.address_entries,
                       self.video_confirm_button,
                       separator)
         self._make_scrolled_window(vbox)
@@ -952,16 +912,11 @@ class VideoMenu(AbstractMenu):
         """
         usb_radiobutton_value = self.usb_radiobutton.get_active()
         usb_source_selected = self.usb_sources.get_active_text()
-
         ip_radiobutton_value = self.ip_radiobutton.get_active()
-        ipv4_radiobutton_value = self.ipv4_radiobutton.get_active()
-        ipv6_radiobutton_value = self.ipv6_radiobutton.get_active()
 
         return {"usb_radiobutton": usb_radiobutton_value,
                 "usb_source_selected": usb_source_selected,
-                "ip_radiobutton": ip_radiobutton_value,
-                "ipv4_radiobutton": ipv4_radiobutton_value,
-                "ipv6_radiobutton": ipv6_radiobutton_value, }
+                "ip_radiobutton": ip_radiobutton_value, }
 
     def set_properties(self, **kargs):
         """
@@ -972,8 +927,6 @@ class VideoMenu(AbstractMenu):
         usb_radiobutton_value = kargs.get("usb_radiobutton")
         usb_source_selected = kargs.get("usb_source_selected")
         ip_radiobutton_value = kargs.get("ip_radiobutton")
-        ipv4_radiobutton_value = kargs.get("ipv4_radiobutton")
-        ipv6_radiobutton_value = kargs.get("ipv6_radiobutton")
 
         self.usb_radiobutton.set_active(usb_radiobutton_value)
         self.requested_video_source = None
@@ -983,8 +936,6 @@ class VideoMenu(AbstractMenu):
         self.on_usb_input_change(self.usb_sources)
 
         self.ip_radiobutton.set_active(ip_radiobutton_value)
-        self.ipv4_radiobutton.set_active(ipv4_radiobutton_value)
-        self.ipv6_radiobutton.set_active(ipv6_radiobutton_value)
 
         # TODO: add an OR operator with ip_source_selected once ip based
         #       source is implemented
@@ -1009,9 +960,6 @@ class VideoMenu(AbstractMenu):
             self.video_confirm_button.set_sensitive(True)
             self.requested_video_source = self.pipeline.get_source_by_description(
                 active_text)
-
-    def on_ipv46_toggle(self, widget):
-        raise NotImplementedError
 
     def on_confirm_clicked(self, widget):
         if self.requested_video_source == self.current_video_source:
@@ -1208,16 +1156,16 @@ class StreamMenu(AbstractMenu):
         self._manage_revealer(self.settings_revealer, stream_element.vbox)
 
     class StreamSection(AbstractMenu):
-        def __init__(self, pipeline, settings_revealer, parent_container, index):
+        def __init__(self, pipeline, settings_revealer, parent_container,
+                     index):
             super().__init__(pipeline, None)
             self._parent_container = parent_container
             self._settings_revealer = settings_revealer
             self._revealer = self._build_revealer()
             self._index = index
 
-            self.remote_server_radiobutton = None
-            self.local_server_radiobutton = None
             self.server_address_entries = None
+            self.address = None
             self.port = None
             self.mountpoint = None
             self.password = None
@@ -1237,10 +1185,8 @@ class StreamMenu(AbstractMenu):
             self._audiovideo_format_hbox = None
             self._video_format_hbox = None
             self._audio_format_hbox = None
-            self.store_confirm_button = None
 
-            self.stream_remote_widgets = []
-            self.stream_local_widgets = []
+            self.store_confirm_button = None
 
             self.vbox = self._build_newstream_vbox()
             self.summary_vbox = None
@@ -1250,45 +1196,10 @@ class StreamMenu(AbstractMenu):
         def _build_newstream_vbox(self):
             """
             """
-            self.remote_server_radiobutton = Gtk.RadioButton("Remote")
-            self.remote_server_radiobutton.set_active(True)
-            self.remote_server_radiobutton.connect(
-                "clicked", self.on_remote_server_toggle)
-
-            self.local_server_radiobutton = Gtk.RadioButton(
-                label="Local (soon)", group=self.remote_server_radiobutton)
-            self.local_server_radiobutton.connect(
-                "clicked", self.on_local_server_toggle)
-            self.local_server_radiobutton.set_sensitive(False)  # DEV
-
-            server_type_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            _pack_widgets(server_type_hbox,
-                          self.remote_server_radiobutton,
-                          self.local_server_radiobutton)
-
-            ipv46_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            ipv46_hbox.set_margin_left(24)
-            self.ipv4_radiobutton = Gtk.RadioButton("v4")
-            self.ipv4_radiobutton.set_active(True)
-            self.ipv4_radiobutton.connect("toggled", self.on_ipv46_toggle)
-            self.ipv6_radiobutton = Gtk.RadioButton(
-                "v6 (soon)", group=self.ipv4_radiobutton)
-            self.ipv6_radiobutton.connect("toggled", self.on_ipv46_toggle)
-            self.ipv6_radiobutton.set_sensitive(False)  # DEV
-            _pack_widgets(ipv46_hbox,
-                          self.ipv4_radiobutton,
-                          self.ipv6_radiobutton)
-
-            self.ipv4_entries = self._build_ipv4_entries()
-            self.ipv4_entries.set_margin_left(24)
-
-            # TODO: Implement ipv6_entry
-            # ipv6_entry = self._build_ipv6_entry()
-            # ipv6_entry.set_margin_left(24)
-
-            self.stream_remote_widgets.extend((self.ipv4_radiobutton,
-                                               self.ipv6_radiobutton,
-                                               self.ipv4_entries))
+            address_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
+            address_label = Gtk.Label("Address :    ")
+            self.address_entries = self._build_address_entries()
+            _pack_widgets(address_hbox, address_label, self.address_entries)
 
             mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
             mountpoint_label = Gtk.Label("Mountpoint : ")
@@ -1319,9 +1230,7 @@ class StreamMenu(AbstractMenu):
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             vbox.set_margin_right(6)
             _pack_widgets(vbox,
-                          server_type_hbox,
-                          ipv46_hbox,
-                          self.ipv4_entries,
+                          address_hbox,
                           mountpoint_hbox,
                           password_hbox,
                           radiobutton_hbox,
@@ -1332,7 +1241,7 @@ class StreamMenu(AbstractMenu):
         def build_full_mountpoint(self):
             """
             Build mountpoint used by :class:`~backend.ioelements.StreamElement`
-            based on mountpoint entry and extension choosen. 
+            based on mountpoint entry and extension choosen.
             """
             self.full_mountpoint = self.mountpoint + self._get_format_extension()
 
@@ -1343,23 +1252,13 @@ class StreamMenu(AbstractMenu):
 
             :return: :class:`dict` as property_key: value
             """
-            remote_radiobutton_value = self.remote_server_radiobutton.get_active()
-            local_radiobutton_value = self.local_server_radiobutton.get_active()
-
-            ipv4_radiobutton_value = self.ipv4_radiobutton.get_active()
-            ipv6_radiobutton_value = self.ipv6_radiobutton.get_active()
-
             audiovideo_radiobutton_value = self.audiovideo_radiobutton.get_active()
             video_radiobutton_value = self.video_radiobutton.get_active()
             audio_radiobutton_value = self.audio_radiobutton.get_active()
             feed_format = self._get_format_extension()
 
-            return {"remote_radiobutton": remote_radiobutton_value,
-                    "local_radiobutton": local_radiobutton_value,
-                    "ipv4_radiobutton": ipv4_radiobutton_value,
-                    "ipv6_radiobutton": ipv6_radiobutton_value,
-                    "ip_address": self.ip_address,
-                    "port": self.port,
+            return {"host": self.host_entry.get_text(),
+                    "port": self.port_entry.get_text(),
                     "mountpoint": self.mountpoint,
                     "mount": self.full_mountpoint,  # Used only by StremElement
                     "password": self.password,
@@ -1374,11 +1273,7 @@ class StreamMenu(AbstractMenu):
 
             :param kargs: :class:`dict` containing properties related to this menu
             """
-            remote_radiobutton_value = kargs.get("remote_radiobutton")
-            local_radiobutton_value = kargs.get("local_radiobutton")
-            ipv4_radiobutton_value = kargs.get("ipv4_radiobutton")
-            ipv6_radiobutton_value = kargs.get("ipv6_radiobutton")
-            ip_address_value = kargs.get("ip_address")
+            host_value = kargs.get("host")
             port_value = kargs.get("port")
             mountpoint_value = kargs.get("mountpoint")
             password_value = kargs.get("password")
@@ -1387,13 +1282,8 @@ class StreamMenu(AbstractMenu):
             audio_radiobutton_value = kargs.get("audio_radiobutton")
             feed_format_value = kargs.get("feed_format")
 
-            self.remote_server_radiobutton.set_active(remote_radiobutton_value)
-            self.local_server_radiobutton.set_active(local_radiobutton_value)
-            self.ipv4_radiobutton.set_active(ipv4_radiobutton_value)
-            self.ipv6_radiobutton.set_active(ipv6_radiobutton_value)
-
-            self.set_ip_fields(
-                self.ipv4_entries, ip_address_value, port_value)
+            self.host_entry.set_text(host_value)
+            self.port_entry.set_text(port_value)
             self.mountpoint_entry.set_text(mountpoint_value)
             self.password_entry.set_text(password_value)
 
@@ -1404,23 +1294,19 @@ class StreamMenu(AbstractMenu):
 
             self.on_confirm_clicked(self.stream_confirm_button)
 
-        def on_remote_server_toggle(self, widget):
-            if widget.get_active():
-                # TODO: hide widgets related to local_server and then show
-                # remote_server related ones.
-                pass
+        def on_host_change(self, widget):
+            if self.port_entry.get_text() and self.mountpoint:
+                self.stream_confirm_button.set_sensitive(True)
 
-        def on_local_server_toggle(self, widget):
-            if widget.get_active():
-                # TODO: hide widgets related to remote_server and then show
-                # local_server related ones.
-                pass
+        def on_port_change(self, widget):
+            if self.host_entry.get_text() and self.mountpoint:
+                self.stream_confirm_button.set_sensitive(True)
 
         def on_mountpoint_change(self, widget):
             text = widget.get_text()
             if text != self.mountpoint:
                 self.mountpoint = text
-                if self.port_entry:
+                if self.port_entry.get_text():
                     self.stream_confirm_button.set_sensitive(True)
 
         def on_password_change(self, widget):
@@ -1439,16 +1325,17 @@ class StreamMenu(AbstractMenu):
 
         def on_confirm_clicked(self, widget):
             try:
-                self.ip_address, self.port = self.get_ipv4_address()
-            except TypeError:
-                # All IP/port fields are not filled
+                self.address, self.port = self.get_ip_address()
+            except Exception:
+                # Bad input for host or port, the stream endpoint must not be
+                # created.
                 return
 
             self.element_name = self.mountpoint.split("/")[-1]
             self.build_full_mountpoint()
             if not self.streamsink:
                 self.streamsink = self.pipeline.create_stream_sink(
-                    self.element_name, self.current_stream_type, self.ip_address,
+                    self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
 
             if not self.summary_vbox:
