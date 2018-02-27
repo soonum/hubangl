@@ -360,7 +360,7 @@ class MainWindow:
                 file_saved += ".huba"
             self.session_properties = self.current_app.feed.gather_properties()
             with open(file_saved, "w") as f:
-                json.dump(self.session_properties, f)
+                json.dump(self.session_properties, f, indent="\t")
 
         dialog.destroy()
 
