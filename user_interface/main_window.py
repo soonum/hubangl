@@ -142,13 +142,13 @@ class MainWindow:
                 "Play", self.dropmenu_feed,
                 image=self.images.icons["play"]["regular_16px"],
                 callback=self.on_play_clicked,
-                accelerator_key="<alt>Y"
+                accelerator_key="<alt>P"
         )
         self.subitem_stop = self._build_menu_item(
                 "Stop", self.dropmenu_feed,
                 image=self.images.icons["stop"]["regular_16px"],
                 callback=self.on_stop_clicked,
-                accelerator_key="<alt>P"
+                accelerator_key="<alt>S"
         )
         self._build_separatormenuitem(self.dropmenu_feed)
 
