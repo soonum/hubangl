@@ -208,7 +208,7 @@ class Feed:
         """
         Remove all outputs created in stream and store menus.
         """
-        self.pipeline.remove_output_sinks()
+        self.pipeline.remove_output_branches()
 
         for menu in (self.stream_menu, self.store_menu):
             for section in menu.feeds:

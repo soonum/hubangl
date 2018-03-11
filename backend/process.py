@@ -146,7 +146,10 @@ class Pipeline:
         self.pipeline = Gst.Pipeline()
         self.is_preview_state = False
         self.is_playing = False
-        self.fakesink_counter = 0
+
+        # Map fakesink to tee element
+        self._output_tee_pool = {}
+
         self.speaker_volume = None
 
         self.audio_sources = self.create_audio_sources()
@@ -155,38 +158,31 @@ class Pipeline:
         #: GstElement used in the pipeline
         self.speaker_sink = None
 
-        #: Streaming sinks that has to be added and linked when pipeline is
-        #: switched to play state.
-        self.stream_sinks = {"audio": [],
-                             "video": [],
-                             "audiovideo": []}
-        #: Store sinks that has to be added and linked when pipeline is
-        #: switched to play state.
-        self.store_sinks = {"audio": [],
-                            "video": [],
-                            "audiovideo": []}
+        # Streaming sinks that has to be added and linked when pipeline is
+        # switched to play state.
+        self.stream_sink_branches = {"audio": {"tee": None, "branches": []},
+                                     "video": {"tee": None, "branches": []},
+                                     "audiovideo": {"tee": None, "branches": []}}
+        # Idem for store sinks.
+        self.store_sink_branches = {"audio": {"tee": None, "branches": []},
+                                    "video": {"tee": None, "branches": []},
+                                    "audiovideo": {"tee": None, "branches": []}}
 
         (self.audio_process_source,
          self.audio_process_branch1,
          self.audio_process_branch2,
          self.audio_process_branch3,
-         self.audio_process_branch4,
-         self.audio_process_branch5,
          self.audio_muxer_source) = self.create_audio_process()
 
         (self.video_process_source,
          self.video_process_branch1,
          self.video_process_branch2,
          self.video_process_branch3,
-         self.video_process_branch4,
-         self.video_process_branch5,
          self.video_muxer_source) = self.create_video_process()
 
         (self.av_process_branch1,
          self.av_process_branch2,
-         self.av_process_branch3,
-         self.av_process_branch4,
-         self.av_process_branch5) = self.create_audiovideo_process(
+         self.av_process_branch3) = self.create_audiovideo_process(
              self.audio_muxer_source,
              self.video_muxer_source)
 
@@ -195,19 +191,13 @@ class Pipeline:
                             self.audio_process_branch1,
                             self.audio_process_branch2,
                             self.audio_process_branch3,
-                            self.audio_process_branch4,
-                            self.audio_process_branch5,
                             self.video_process_source,
                             self.video_process_branch1,
                             self.video_process_branch2,
                             self.video_process_branch3,
-                            self.video_process_branch4,
-                            self.video_process_branch5,
                             self.av_process_branch1,
                             self.av_process_branch2,
-                            self.av_process_branch3,
-                            self.av_process_branch4,
-                            self.av_process_branch5)
+                            self.av_process_branch3,)
 
     def set_play_state(self):
         """
@@ -219,7 +209,7 @@ class Pipeline:
             self.is_preview_state = False
 
         if not self.is_playing:
-            self.set_output_sink()
+            self.set_output_branches()
             self.pipeline.set_state(Gst.State.PLAYING)
             self.is_playing = True
 
@@ -244,7 +234,7 @@ class Pipeline:
         self.is_playing = False
 
         # Switch back to preview mode.
-        self.remove_output_sinks()
+        self.remove_output_branches()
         self.pipeline.set_state(Gst.State.PLAYING)
         self.is_preview_state = True
 
@@ -572,19 +562,19 @@ class Pipeline:
         """
         return self.pipeline.get_by_name(element.name)
 
-    def get_source_by_description(self, description):
+    def get_source_by_name(self, name):
         """
-        Fetching GStreamer element source by its description.
+        Fetching GStreamer element source by its name.
         The first match will be returned.
 
-        :param element: description attribute of
+        :param element: name attribute of
             :class:`~backend.ioelement.Input`
 
         :return: Gstreamer element
         """
         for source_type in (self.audio_sources, self.video_sources):
             for source in source_type:
-                if description == source.description:
+                if name == source.name:
                     return source
 
     def connect_tee(self,
@@ -611,7 +601,8 @@ class Pipeline:
         :param element_kind: type of GStreamer element as :class:`str`
         """
         for item in tee.related_output:
-            if item.element_kind == element_kind:
+            if (self._exist_in_pipeline(item)
+                    and item.element_kind == element_kind):
                 tee.gstelement.unlink(item.gstelement)
                 self.pipeline.remove(item.gstelement)
 
@@ -624,7 +615,6 @@ class Pipeline:
         tee_elements = []
         tee_input_elements = []
         tee_output_elements = []
-        previous_item = None
 
         for branche in branches:
             for item in branche:
@@ -651,7 +641,7 @@ class Pipeline:
                     _output_elements.append(element)
 
             if tee.endpoint_tee and not _output_elements:
-                fakesink = self.make_fakesink(tee, self.pipeline)
+                fakesink = self._output_tee_pool[tee]
                 _output_elements.append(fakesink)
 
             if not (_input_element and _output_elements):
@@ -678,8 +668,7 @@ class Pipeline:
 
         :return: ``fakesink`` GStramer element
         """
-        fakesink_name = "fakesink" + str(self.fakesink_counter)
-        self.fakesink_counter += 1
+        fakesink_name = "fakesink_" + str(len(self._output_tee_pool))
         fakesink = GstElement("fakesink", fakesink_name, tee_output=True)
         fakesink.set_related_tee(tee_element)
         fakesink.set_property("sync", False)
@@ -693,21 +682,37 @@ class Pipeline:
         Add Gst elements to ``pipeline``
         """
         for branch in branches:
-            if not branch:
-                continue
             for element in branch:
                 if self._exist_in_pipeline(element):
                     raise ElementAlreadyAdded
                 try:
-                    pipeline.add(element.gstelement)
+                    if (isinstance(element, ioelements.InputElement)
+                            or isinstance(element, ioelements.OutputElement)):
+                        gstelement = element.gstelement.gstelement
+                    else:
+                        gstelement = element.gstelement
+                    pipeline.add(gstelement)
                 except:
                     raise AddingElementError
+
+    def remove_elements(self, pipeline, *branches):
+        """
+        Remove Gst elements from ``pipeline``
+        """
+        for branch in branches:
+            for element in branch:
+                if (isinstance(element, ioelements.InputElement)
+                        or isinstance(element, ioelements.OutputElement)):
+                    gstelement = element.gstelement.gstelement
+                else:
+                    gstelement = element.gstelement
+                pipeline.remove(gstelement)
 
     def link_elements(self, *branches):
         """
         Link GStreamer elements in the pipeline.
 
-        :param *branches:
+        :param branches: branches to link
 
         :note: ``tee`` elements MUST be linked with their input/outputs before
             any other GStreamer elements. Otherwise it could fail to link
@@ -716,22 +721,15 @@ class Pipeline:
         self.build_tee_connections(*branches)
         previous_item = None
 
-        for branche in branches:
-            for item in branche:
+        for branch in branches:
+            for item in branch:
                 if item.element_kind == "tee":
                     previous_item = None
                     continue
                 if item.parents:
                     for parent in item.parents:
-                        if item.element_kind == "funnel":
-                            sinkpad = item.gstelement.get_request_pad("sink_%u")  # DEBUG
-                            parent_sourcepad = parent.gstelement.get_request_pad("src_%u")  # DEBUG
-                            parent_sourcepad.link(sinkpad)  # DEBUG
-                        else:
-                            parent.link(item)
-                            previous_item = item
-                    if item.element_kind != "funnel":
-                        continue
+                        parent.link(item)
+                        previous_item = item
 
                 if not previous_item:
                     previous_item = item
@@ -743,17 +741,6 @@ class Pipeline:
             else:
                 # End of branch
                 previous_item = None
-
-    # DEBUG Method
-    def print_gst(self, msg, indent, *elements):
-        """
-        Debugging function.
-        Print the name of each element.
-        """
-        indent_str = "\t" * indent
-        print(msg)
-        for element in elements:
-            print(indent_str, "\_", element.name)
 
     def set_input_source(self, source_element):
         """
@@ -797,96 +784,40 @@ class Pipeline:
                         source_gstelement.gstelement.unlink(parent)
                     self.pipeline.remove(source_gstelement.gstelement)
 
-    def set_output_sink(self):
+    def set_output_branches(self):
         """
         Add a streaming/storing sink to the pipeline.
         """
-        for sinks_dict in (self.store_sinks, self.stream_sinks):
-            for feed_type, sinks in sinks_dict.items():
-                for sink in sinks:
-                    parent = self._get_streamstore_parent(sink, feed_type)
-                    sink_gstelement = sink.gstelement
-                    if self._exist_in_pipeline(sink_gstelement):
-                        # The element has been added since the pipeline was
-                        # set in play state previously.
-                        continue
+        for sinks_dict in (self.store_sink_branches, self.stream_sink_branches):
+            for _, sinks in sinks_dict.items():
+                if sinks["branches"]:
+                    self.remove_tee_output(sinks["tee"], "fakesink")
 
-                    child = self.get_connected_element(parent.get_static_pad("src"))
-                    if child:
-                        # A fakesink is linked
-                        parent.gstelement.unlink(child)
-                        self.pipeline.remove(child)
+                for branch in sinks["branches"]:
+                    self.add_elements(self.pipeline, branch)
+                    # Link first branch element to its related tee
+                    sinks["tee"].link(branch[0])
+                    # Link all branch elements together
+                    for i, element in enumerate(branch):
+                        if i == 0:
+                            continue
+                        if isinstance(element, ioelements.OutputElement):
+                            element = element.gstelement
+                        branch[i - 1].link(element)
 
-                    self.add_elements(self.pipeline, (sink_gstelement,))
-                    parent.link(sink_gstelement)
-                    # FIXME: yet you can only have one filesink per stream
-                    # since tee_endpoint are not used to connect multiple
-                    # filesink to a unique feed_type.
-                    break
-
-    def remove_output_sinks(self):
+    def remove_output_branches(self):
         """
         Remove all output sinks from the GStreamer pipeline.
         """
-        for streamstore_elements in (self.stream_sinks, self.store_sinks):
-            for feed_type, sinks in streamstore_elements.items():
-                for sink in sinks:
-                    sink_gstelement = sink.gstelement
-                    parent = self._get_streamstore_parent(sink, feed_type)
-                    child = self.get_connected_element(parent.get_static_pad("src"))
-                    if child == sink_gstelement.gstelement:
-                        parent.gstelement.unlink(sink_gstelement.gstelement)
-                    if self._exist_in_pipeline(sink.gstelement):
-                        self.pipeline.remove(sink_gstelement.gstelement)
+        for sinks_dict in (self.stream_sink_branches, self.store_sink_branches):
+            for _, sinks in sinks_dict.items():
+                for branch in sinks["branches"]:
+                    self.remove_elements(self.pipeline, branch)
 
-                    # FIXME: Following lines are useful only when an
-                    # audio/video stream output is removed. We need to put
-                    # back in place a fakesink to prevent the freezing of the
-                    # preview video feed.
-                    if parent is self.av_process_branch5[-2]:
-                        try:
-                            self.add_elements(
-                                self.pipeline, (self.fakesink_av_stream,))
-                        except ElementAlreadyAdded:
-                            # The pipeline has not been set to PLAY state, so
-                            # the fakesink is already inside it.
-                            # Just ignoring the exception.
-                            pass
-                        else:
-                            parent.gstelement.link(
-                                self.fakesink_av_stream.gstelement)
-
-    def _get_streamstore_parent(self, ioelement, feed_type):
-        """
-        Get parent element for a :class:`~backend.ioelements.StoreElement` or
-        :class:`~backend.ioelements.StreamElement` depending on ``feed_type``.
-
-        :param ioelement: :class:`~backend.ioelements.StoreElement` or
-            :class:`~backend.ioelements.StreamElement`
-        :param feed_type: could be either ``audiovideo``, ``audio`` or
-            ``video`` as :class:`str`
-
-        :return: :class:`~backend.gstelement.GstElement` to connect to.
-        """
-        if isinstance(ioelement, ioelements.StoreElement):
-            index = 0
-        elif isinstance(ioelement, ioelements.StreamElement):
-            index = 1
-        else:
-            raise NotStoreStreamSink
-
-        audio_branch = (self.audio_process_branch3, self.audio_process_branch4)
-        video_branch = (self.video_process_branch3, self.video_process_branch4)
-        audiovideo_branch = (self.av_process_branch4, self.av_process_branch5)
-
-        if feed_type == AUDIO_VIDEO_STREAM:
-            return audiovideo_branch[index][-2]  # FIXME: index
-        elif feed_type == AUDIO_ONLY_STREAM:
-            return audio_branch[index][-1]  # FIXME: index
-        elif feed_type == VIDEO_ONLY_STREAM:
-            return video_branch[index][-1]  # FIXME: index
-        else:
-            raise ValueError
+        for tee, fakesink in self._output_tee_pool.items():
+            if not self._exist_in_pipeline(fakesink):
+                self.pipeline.add(fakesink.gstelement)
+                tee.link(fakesink)
 
     def create_audio_sources(self):
         """
@@ -930,11 +861,10 @@ class Pipeline:
 
         return tuple(video_sources)
 
-    def create_stream_sink(self, element_name, feed_type, ip, port, mount,
-                           password=None):
+    def create_stream_branch(self, element_name, feed_type, ip, port, mount,
+                             password=None):
         """
-        Create all output GStreamer elements dedicated to streaming, based on
-        current definition of process pipeline.
+        Create a stream sink branch and add it to :attr:`stream_sink_branches`.
 
         :param element_name: name that is given to store object as :class:`str`
         :param feed_type: could be either ``audiovideo``, ``audio`` or
@@ -947,13 +877,23 @@ class Pipeline:
 
         :return: :class:`~backend.ioelements.StreamElement`
         """
-        sink = ioelements.StreamElement(element_name, ip, port, mount, password)
-        self._append_sink(self.stream_sinks, sink, feed_type)
+        id = str(len(self.stream_sink_branches[feed_type]["branches"]))
+
+        queue_name = "queue_" + feed_type + "_streamsink_" + id
+        queue = GstElement("queue", queue_name, tee_output=True)
+        queue.set_related_tee(self.stream_sink_branches[feed_type]["tee"])
+        queue.set_property("flush-on-eos", True)
+        queue.set_property("leaky", 2)
+
+        sink_name = element_name + "_" + id
+        sink = ioelements.StreamElement(sink_name, ip, port, mount, password)
+
+        self._append_sink(self.stream_sink_branches, feed_type, (queue, sink))
         return sink
 
-    def create_store_sink(self, feed_type, filepath, element_name):
+    def create_store_branch(self, feed_type, filepath, element_name):
         """
-        Create a filesink and add it to store_sinks dict.
+        Create a file sink branch and add it to :attr:`store_sink_branches`.
 
         :param element_name: name that is given to store object as :class:`str`
         :param feed_type: could be either ``audiovideo``, ``audio`` or
@@ -962,21 +902,36 @@ class Pipeline:
 
         :return: :class:`~backend.ioelements.StoreElement`
         """
-        sink = ioelements.StoreElement(element_name, filepath)
-        self._append_sink(self.store_sinks, sink, feed_type)
+        id = str(len(self.store_sink_branches[feed_type]["branches"]))
+
+        queue_name = "queue_" + feed_type + "_filesink_" + id
+        queue = GstElement("queue", queue_name, tee_output=True)
+        queue.set_related_tee(self.store_sink_branches[feed_type]["tee"])
+
+        sink_name = element_name + "_" + id
+        sink = ioelements.StoreElement(sink_name, filepath)
+
+        self._append_sink(self.store_sink_branches, feed_type, (queue, sink))
         return sink
 
-    def _append_sink(self, sink_dict, sink_element, feed_type):
+    def _append_sink(self, sink_dict, feed_type, *elements):
         """
-        Append ``sink_element`` in ``sink_dict`` depending on ``feed_type``.
+        Append ``elements`` in ``sink_dict`` depending on ``feed_type``.
 
         :param sink_dict: :class:`dict` containing sinks elements
-        :param sink_element: subclass of :class:`~backend.ioelements.OutputElement`
         :param feed_type: could be either ``audiovideo``, ``audio`` or
             ``video`` as :class:`str`
+        :param elements: elements to add
         """
         element_list = sink_dict.get(feed_type)
-        element_list.append(sink_element)
+        for element in elements:
+            element_list["branches"].append(element)
+
+    def _set_output_tee(self, feed_type, tee_element):
+        self.stream_sink_branches[feed_type]["tee"] = tee_element
+        self.store_sink_branches[feed_type]["tee"] = tee_element
+        self._output_tee_pool[tee_element] = self.make_fakesink(tee_element,
+                                                                self.pipeline)
 
     def create_audio_process(self,):
         """
@@ -991,8 +946,7 @@ class Pipeline:
                            |---<to audiovideo processing (queue_muxer_audio)>
                            |---/queue/---/ogg_muxer/--->
                             --->/tee_output_audio/
-                                     |---/queue/---<to streaming element>
-                                     |---/queue/---<to storing element>
+                                     |---<to output branches>
 
         :return: a :class:`tuple` of branches
 
@@ -1002,18 +956,13 @@ class Pipeline:
         # Tee:
         tee_audio_source = GstElement("tee", "tee_audio_source")
         tee_audio_process = GstElement("tee", "tee_audio_process")
-        tee_output_audio = GstElement("tee", "tee_output_audio")
+        tee_output_audio = GstElement("tee", "tee_output_audio",
+                                      endpoint_tee=True)
+        self._set_output_tee("audio", tee_output_audio)
         # Queue:
         queue_muxer_av1 = GstElement(
             "queue", "queue_muxer_av1", tee_output=True)
         queue_muxer_av1.set_related_tee(tee_audio_process)
-        queue_audio_filesink = GstElement(
-            "queue", "queue_audio_filesink", tee_output=True)
-        queue_audio_filesink.set_related_tee(tee_output_audio)
-        queue_audio_streamsink = GstElement(
-            "queue", "queue_audio_streamsink", tee_output=True)
-        queue_audio_streamsink.set_related_tee(tee_output_audio)
-        queue_audio_streamsink.set_property("leaky", 2)
         queue_speakersink = GstElement(
             "queue", "queue_speakersink", tee_output=True)
         queue_speakersink.set_related_tee(tee_audio_source)
@@ -1043,16 +992,12 @@ class Pipeline:
         source_branch = (self.source_volume, audiolevel, tee_audio_source)
         output_branch_encoding = (vorbis_encoder, tee_audio_process)
         output_branch_muxing = (queue_muxer_av1, ogg_muxer, tee_output_audio)
-        output_branch_storing = (queue_audio_filesink,)
-        output_branch_streaming = (queue_audio_streamsink,)
         output_branch_loudspeakers = (
             queue_speakersink, self.speaker_volume, self.speaker_sink)
 
         return (source_branch,
                 output_branch_encoding,
                 output_branch_muxing,
-                output_branch_storing,
-                output_branch_streaming,
                 output_branch_loudspeakers,
                 tee_audio_process)
 
@@ -1065,7 +1010,7 @@ class Pipeline:
         --->/image_overlay/---/text_overlay/--->
         --->/tee_video_source/
                  |---/queue/---/mkv_muxer/---/tee_output_video/
-                 |                                |---<to output_elements>
+                 |                                |---<to output branches>
                  |---/screen_sink/
                  |---/vp8_encoder/--->
                   ---><to audiovideo processing (queue_muxer_video)>
@@ -1077,18 +1022,13 @@ class Pipeline:
         """
         # Tee:
         tee_video_source = GstElement("tee", "tee_video_source")
-        tee_output_video = GstElement("tee", "tee_output_video")
+        tee_output_video = GstElement("tee", "tee_output_video",
+                                      endpoint_tee=True)
+        self._set_output_tee("video", tee_output_video)
         # Queue:
         queue_muxer_av2 = GstElement(
             "queue", "queue_muxer_av2", tee_output=True)
         queue_muxer_av2.set_related_tee(tee_video_source)
-        queue_video_filesink = GstElement(
-            "queue", "queue_video_filesink", tee_output=True)
-        queue_video_filesink.set_related_tee(tee_output_video)
-        queue_video_streamsink = GstElement(
-            "queue", "queue_video_streamsink", tee_output=True)
-        queue_video_streamsink.set_related_tee(tee_output_video)
-        queue_video_streamsink.set_property("leaky", 2)
         # Caps:
         caps_string = ("video/x-raw,"
                        + "format=I420,"
@@ -1098,8 +1038,6 @@ class Pipeline:
         caps = Gst.caps_from_string(caps_string)
         capsfilter = GstElement("capsfilter", "capsfilter")
         capsfilter.set_property("caps", caps)
-        # Scaling:
-        video_scale = GstElement("videoscale", "video_scale")
         # Image overlay:
         self.image_overlay = GstElement("gdkpixbufoverlay", "image_overlay")
         #self.image_overlay.set_property("location", DEFAULT_IMAGE)
@@ -1133,19 +1071,15 @@ class Pipeline:
         screen_sink.set_related_tee(tee_video_source)
         screen_sink.set_property("sync", False)
 
-        source_branch = (videorate, capsfilter,   self.image_overlay,  # DEV
+        source_branch = (videorate, capsfilter, self.image_overlay,
                          self.text_overlay, tee_video_source,)
         output_branch_encoding = (vp8_encoder,)
         output_branch_muxing = (queue_muxer_av2, mkv_muxer, tee_output_video)
-        output_branch_storing = (queue_video_filesink,)
-        output_branch_streaming = (queue_video_streamsink,)
         output_branch_screen = (screen_sink,)
 
         return (source_branch,
                 output_branch_encoding,
                 output_branch_muxing,
-                output_branch_storing,
-                output_branch_streaming,
                 output_branch_screen,
                 vp8_encoder)
 
@@ -1161,7 +1095,7 @@ class Pipeline:
                                             |---/webmux/--->
         <from video processing>---/queue/---
         --->/tee_output_audiovideo/
-                 |---<to output_elements>
+                 |---<to output branches>
 
         :param audio_muxer_source: :class:`~backend.gstelement.GstElement`
             providing audio feed
@@ -1174,8 +1108,9 @@ class Pipeline:
             of this ``tee`` make a new branch that has to be returned.
         """
         # Tee:
-        tee_output_audiovideo = GstElement(
-            "tee", "tee_output_audiovideo",)
+        tee_output_audiovideo = GstElement("tee", "tee_output_audiovideo",
+                                           endpoint_tee=True)
+        self._set_output_tee("audiovideo", tee_output_audiovideo)
         # Queue:
         if audio_muxer_source.element_kind == "tee":
             queue_muxer_audio = GstElement(
@@ -1192,14 +1127,6 @@ class Pipeline:
         else:
             queue_muxer_video = GstElement(
                 "queue", "queue_muxer_video", parents=(video_muxer_source,))
-
-        queue_audiovideo_filesink = GstElement(
-            "queue", "queue_audiovideo_filesink", tee_output=True)
-        queue_audiovideo_filesink.set_related_tee(tee_output_audiovideo)
-        queue_audiovideo_streamsink = GstElement(
-            "queue", "queue_audiovideo_streamsink", tee_output=True)
-        queue_audiovideo_streamsink.set_related_tee(tee_output_audiovideo)
-        queue_audiovideo_streamsink.set_property("leaky", 2)
         # Muxer:
         webm_muxer = GstElement("webmmux",
                                 "webm_muxer",
@@ -1209,20 +1136,11 @@ class Pipeline:
         webm_muxer.set_related_tee(tee_output_audiovideo)
         webm_muxer.set_property("streamable", True)
 
-        self.fakesink_av_file = GstElement("fakesink", "fakesink_av_file")  # DEBUG
-        self.fakesink_av_stream = GstElement("fakesink", "fakesink_av_stream")  # DEBUG
-
         source_audio = (queue_muxer_audio,)
         source_video = (queue_muxer_video,)
         output_branch_muxing = (webm_muxer, tee_output_audiovideo)
-        output_branch_storing = (queue_audiovideo_filesink, self.fakesink_av_file)
-        output_branch_streaming = (queue_audiovideo_streamsink, self.fakesink_av_stream)
 
-        return (source_audio,
-                source_video,
-                output_branch_muxing,
-                output_branch_storing,
-                output_branch_streaming)
+        return (source_audio, source_video, output_branch_muxing)
 
 
 class Monitoring(Pipeline):

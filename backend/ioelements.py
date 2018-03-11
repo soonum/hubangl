@@ -33,8 +33,8 @@ class InputElement:
 
     in_type could be "audio" or "video".
     """
-    def __init__(self, description):
-        self.description = description
+    def __init__(self, name):
+        self.name = name
 
     def detach_gstelement(self, pipeline_state):
         # Idem change_gstelement()
@@ -46,8 +46,8 @@ class InputElement:
 
 
 class AudioInput(InputElement):
-    def __init__(self, description, device_location, **kwargs):
-        InputElement.__init__(self, description)
+    def __init__(self, name, device_location, **kwargs):
+        InputElement.__init__(self, name)
         self.device_location = device_location
         self.gstelement = self.create_gstelement(
             self.device_location, **kwargs)
@@ -80,8 +80,8 @@ class AudioInput(InputElement):
 
 
 class VideoInput(InputElement):
-    def __init__(self, description, communication, device_location, **kwargs):
-        InputElement.__init__(self, description)
+    def __init__(self, name, communication, device_location, **kwargs):
+        InputElement.__init__(self, name)
         self.communication = communication
         self.device_location = device_location
         self.gstelement = self.create_gstelement(
@@ -141,8 +141,8 @@ class OutputElement:
 
     out_type could be "stream" or "store".
     """
-    def __init__(self, description):
-        self.description = description
+    def __init__(self, name):
+        self.name = name
 
     def detach_gstelement(self, pipeline_state):
         # Idem change_gstelement()
@@ -154,9 +154,9 @@ class OutputElement:
 
 
 class StreamElement(OutputElement):
-    def __init__(self, description, ip, port, mount,
+    def __init__(self, name, ip, port, mount,
                  password=None, **kwargs):
-        OutputElement.__init__(self, description)
+        OutputElement.__init__(self, name)
         self.ip = ip
         self.mount = mount
         self.port = port
@@ -171,7 +171,7 @@ class StreamElement(OutputElement):
         if not (ip or port or mount):
             raise StreamInfoIncomplete
 
-        _gstelement = GstElement("shout2send", self.description, **kwargs)
+        _gstelement = GstElement("shout2send", self.name, **kwargs)
         if not _gstelement:
             raise GstElementInitError
         _gstelement.set_property("sync", False)
@@ -185,8 +185,8 @@ class StreamElement(OutputElement):
 
 
 class StoreElement(OutputElement):
-    def __init__(self, description, path, **kwargs):
-        OutputElement.__init__(self, description)
+    def __init__(self, name, path, **kwargs):
+        OutputElement.__init__(self, name)
         self.path = path
         self.gstelement = self.create_gstelement(self.path, **kwargs)
 
@@ -197,7 +197,7 @@ class StoreElement(OutputElement):
         if not path:
             raise ValueError
 
-        _gstelement = GstElement("filesink", self.description, **kwargs)
+        _gstelement = GstElement("filesink", self.name, **kwargs)
         if not _gstelement:
             raise GstElementInitError
         _gstelement.set_property("location", path)

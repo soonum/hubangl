@@ -404,8 +404,8 @@ class VideoMenu(AbstractMenu):
             self.usb_sources.append_text("")
         else:
             for source in self.pipeline.video_sources:
-                self.usb_sources.append_text(source.description)
-                self.sources_list.append(source.description)
+                self.usb_sources.append_text(source.name)
+                self.sources_list.append(source.name)
         self.usb_sources.connect("changed", self.on_usb_input_change)
         self.usb_sources.set_margin_left(24)
         self.video_usb_widgets.append(self.usb_sources)
@@ -495,7 +495,7 @@ class VideoMenu(AbstractMenu):
         active_text = widget.get_active_text()
         if active_text:
             self.video_confirm_button.set_sensitive(True)
-            self.requested_video_source = self.pipeline.get_source_by_description(
+            self.requested_video_source = self.pipeline.get_source_by_name(
                 active_text)
 
     def on_confirm_clicked(self, widget):
@@ -536,8 +536,8 @@ class AudioMenu(AbstractMenu):
 
         self.mic_sources = Gtk.ComboBoxText()
         for source in self.pipeline.audio_sources:
-            self.mic_sources.append_text(source.description)
-            self.sources_list.append(source.description)
+            self.mic_sources.append_text(source.name)
+            self.sources_list.append(source.name)
         self.mic_sources.connect("changed", self.on_input_change)
         self.mic_sources.set_margin_left(24)
 
@@ -546,9 +546,9 @@ class AudioMenu(AbstractMenu):
 
         self.output_sinks = Gtk.ComboBoxText()
         index = 0
-        for description, device in self.pipeline.speaker_sinks.items():
-            self.output_sinks.append_text(description)
-            self.sinks_list.append(description)
+        for name, device in self.pipeline.speaker_sinks.items():
+            self.output_sinks.append_text(name)
+            self.sinks_list.append(name)
             if device == self.pipeline.speaker_sink.get_property("device"):
                 self.output_sinks.set_active(index)
             index += 1
@@ -608,7 +608,7 @@ class AudioMenu(AbstractMenu):
         # implementation overrides user's choice by setting automatically
         # default speaker output.
         index = 0
-        for description, device in self.pipeline.speaker_sinks.items():
+        for name, device in self.pipeline.speaker_sinks.items():
             if device == self.pipeline.speaker_sink.get_property("device"):
                 self.output_sinks.set_active(index)
             index += 1
@@ -621,12 +621,12 @@ class AudioMenu(AbstractMenu):
 
     def on_input_change(self, widget):
         self.audio_confirm_button.set_sensitive(True)
-        self.requested_audio_source = self.pipeline.get_source_by_description(
+        self.requested_audio_source = self.pipeline.get_source_by_name(
             widget.get_active_text())
 
     def on_output_change(self, widget):
         self.audio_confirm_button.set_sensitive(True)
-        # self.requested_audio_sink = self.pipeline.get_source_by_description(
+        # self.requested_audio_sink = self.pipeline.get_source_by_name(
         #    widget.get_active_text())  # DEV
 
     def on_mute_toggle(self, widget):
@@ -877,7 +877,7 @@ class StreamMenu(AbstractMenu):
             self.element_name = self.mountpoint.split("/")[-1]
             self.build_full_mountpoint()
             if not self.streamsink:
-                self.streamsink = self.pipeline.create_stream_sink(
+                self.streamsink = self.pipeline.create_stream_branch(
                     self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
 
@@ -1120,7 +1120,7 @@ class StoreMenu(AbstractMenu):
             self.build_filepath()
             element_name = self.current_stream_type + "_" + self.filename
             if not self.filesink:
-                self.filesink = self.pipeline.create_store_sink(
+                self.filesink = self.pipeline.create_store_branch(
                     self.current_stream_type, self.filepath, element_name)
 
             if not self.summary_vbox:
