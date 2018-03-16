@@ -22,6 +22,7 @@
 import pathlib
 
 from gi.repository import Gst
+from gi.repository import GLib
 
 from backend import iofetch
 from backend import ioelements
@@ -50,6 +51,9 @@ DEFAULT_PORT = 12345
 AUDIO_VIDEO_STREAM = "audiovideo"
 VIDEO_ONLY_STREAM = "video"
 AUDIO_ONLY_STREAM = "audio"
+
+# Time to wait in seconds before trying to reconnect to an Icecast server.
+RECONNECT_INTERVAL = 5
 
 
 class PlaceholderPipeline:
@@ -435,19 +439,6 @@ class Pipeline:
             blockpad, Gst.PadProbeType.BLOCK_DOWNSTREAM,
             self.pad_probe_cb, user_data)
 
-    # TODO:FIXME: why this method is existing?
-    def _get_blockpad(self, gstelement, pad_type="src"):
-        return gstelement.get_static_pad(pad_type)
-
-    # TODO:FIXME: why this method is existing?
-    def add_probe(pad, user_data, pad_probe_type=None):
-        if not pad_probe_type:
-            pad_probe_type = Gst.PadProbType.BLOCK_DOWNSTREAM
-        return Gst.Pad.add_probe(pad,
-                                 pad_probe_type,
-                                 self.pad_probe_cb,
-                                 user_data)
-
     def pad_probe_cb(self, pad, info, user_data):
         """
         Callback for blocking data flow between 2 or 3 elements.
@@ -533,6 +524,66 @@ class Pipeline:
         requested_element.gstelement.set_state(Gst.State.PLAYING)
 
         return Gst.PadProbeReturn.DROP
+
+    def is_from_streaming(self, message):
+        """
+        Check if a message emitted on the bus is from a stream sink element.
+
+        :param message: GStreamer bus message
+
+        :return: ``True`` if the message was emitted by a stream sink element,
+            ``False`` otherwise
+        """
+        for _, sinks in self.stream_sink_branches.items():
+            for branch in sinks["branches"]:
+                if message.src == branch[-1].gstelement.gstelement:
+                    return True
+
+        return False
+
+    def reconnect_streaming_branch(self, message):
+        """
+        Perform auto reconnect to the icecast server. It assumes that
+        ``message`` was emitted from stream sink element.
+
+        :param message: GStreamer bus message
+        """
+        for feed_type, sinks in self.stream_sink_branches.items():
+            for branch in sinks["branches"]:
+                if message.src == branch[-1].gstelement.gstelement:
+                    pad = branch[0].gstelement.get_static_pad("sink")
+                    tee_pad = pad.get_peer()
+                    tee_pad.add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM,
+                                      self._on_stream_down, {"branch": branch})
+                    break
+
+    def _on_stream_down(self, pad, info, user_data):
+        Gst.Pad.remove_probe(pad, info.id)
+        branch = user_data["branch"]
+        sink_pad = branch[0].gstelement.get_static_pad("sink")
+        pad.unlink(sink_pad)
+        for element in branch:
+            if isinstance(element, ioelements.OutputElement):
+                element = element.gstelement
+            element.gstelement.set_state(Gst.State.NULL)
+        GLib.timeout_add_seconds(RECONNECT_INTERVAL, self._reconnect_stream, pad, branch)
+        return Gst.PadProbeReturn.OK
+
+    def _reconnect_stream(self, tee_pad, branch):
+        tee_pad.add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM,
+                          self._on_reconnect_stream,
+                          {"branch": branch})
+
+    def _on_reconnect_stream(self, pad, info, user_data):
+        Gst.Pad.remove_probe(pad, info.id)
+        branch = user_data["branch"]
+        sink_pad = branch[0].gstelement.get_static_pad("sink")
+        pad.link(sink_pad)
+        for element in branch:
+            if isinstance(element, ioelements.OutputElement):
+                element = element.gstelement
+            element.gstelement.set_state(Gst.State.PLAYING)
+        return Gst.PadProbeReturn.OK
 
     def build_pipeline(self, pipeline, *branches):
         """
@@ -701,12 +752,14 @@ class Pipeline:
         """
         for branch in branches:
             for element in branch:
-                if (isinstance(element, ioelements.InputElement)
-                        or isinstance(element, ioelements.OutputElement)):
-                    gstelement = element.gstelement.gstelement
-                else:
-                    gstelement = element.gstelement
-                pipeline.remove(gstelement)
+                if self._exist_in_pipeline(element):
+                    if (isinstance(element, ioelements.InputElement)
+                            or isinstance(element, ioelements.OutputElement)):
+                        gstelement = element.gstelement.gstelement
+                    else:
+                        gstelement = element.gstelement
+
+                    pipeline.remove(gstelement)
 
     def link_elements(self, *branches):
         """

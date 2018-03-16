@@ -217,30 +217,33 @@ class Feed:
 
     def on_message(self, bus, message):
         # Getting the RMS audio level value:
-        s = Gst.Message.get_structure(message)
-        if message.type == Gst.MessageType.ELEMENT:
-            if str(Gst.Structure.get_name(s)) == "level":
+        message_structure = Gst.Message.get_structure(message)
+        message_type = message.type
+
+        if message_type == Gst.MessageType.ELEMENT:
+            if str(Gst.Structure.get_name(message_structure)) == "level":
                 if not self.audio_level_box.get_visible():
                     self.audio_level_box.set_no_show_all(False)
                     self.audio_level_box.show_all()
 
-                rms = s.get_value("rms")
-                peak = s.get_value("peak")
-                decay = s.get_value("decay")
+                rms = message_structure.get_value("rms")
+                peak = message_structure.get_value("peak")
+                decay = message_structure.get_value("decay")
                 self.audio_level_display.on_level(rms, peak, decay)
-
-        t = message.type
-        if t == Gst.MessageType.EOS:
-            self.streampipe.set_state(Gst.State.NULL)
-        elif t == Gst.MessageType.ERROR:
-            err, debug = message.parse_error()
-            print('%s' % err, debug)  # DEBUG
-            # Watching for feed loss during streaming:
-            # if '(651)' not in debug:
-            #    # The error is not a socket error.
-            #    self.pipel.stream_stop()
-            #    self.build_filename(streamfailed=True)
-            #    self.create_backup_pipeline()
+        elif message_type == Gst.MessageType.EOS:
+            self.pipeline.set_null_state()
+        elif message_type == Gst.MessageType.ERROR:
+            if self.pipeline.is_from_streaming(message):
+                self.pipeline.reconnect_streaming_branch(message)
+            else:
+                err, debug = message.parse_error()
+                print('%s' % err, debug)  # DEBUG
+                # Watching for feed loss during streaming:
+                # if '(651)' not in debug:
+                #    # The error is not a socket error.
+                #    self.pipel.stream_stop()
+                #    self.build_filename(streamfailed=True)
+                #    self.create_backup_pipeline()
 
 
 class ControlBar:
