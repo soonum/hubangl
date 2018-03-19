@@ -6,7 +6,7 @@ Overiew
 HUBAngl is a streaming client software. It is made simple so that related knowledge is not mandatory.
 
 HUBAngl can be use in three different modes:
-	1. standalone (since v0.1)
+	1. standalone
 	2. control-room (soon)
 	3. monitoring (soon)
 
@@ -24,7 +24,7 @@ Monitoring mode
 ~~~~~~~~~~~~~~~
 Fetch audio and/or video streams and sends it to a remote HUBAngl instance working in control-room mode. Almost no audio/video processing is done is this mode.
 
-.. warning:: This is version 0.1, it is released only for feedback and basic debug purpose.
+.. warning:: This is version 0.2, it is released only for feedback and basic debug purpose.
 	  In its current development state, HUBAngl is not fully functional. Some key components are missing as well as nice features.
 
 You must have a GNU/Linux distribution and Python v3.4 or greater in order to launch it (tested only on Trisquel 7 & 8). It uses GTK 3.X for the graphical user interface and GStreamer 1.X for dealing with streams.
@@ -36,5 +36,12 @@ Launch HUBAngl
 
 	  $ ./hubangl
 
+Loading a session configuration from a file is also possible.
+
+.. code:: bash
+
+	  $ ./hubangl -l [path_to_session_filename].huba
+
+.. warning:: Be very careful when saving a session to a file. Passwords to connect to Icecast servers are stored in **plain text**.
 
 Happy Broadcasting
