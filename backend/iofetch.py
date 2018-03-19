@@ -79,6 +79,7 @@ def parse_pactl_list(filepath, output_dict,):
     OUTPUT = 'alsa_output'
     NAME_LINE = 'Name: '
     DESCRIP_LINE = 'Description: '
+    entry = ''
     dev_name = ''
     dev_descrip = ''
     is_input = False
