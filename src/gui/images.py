@@ -63,10 +63,10 @@ class HubanglImages:
         self.load_logos()
 
     def get_artwork_path(self):
-        root = pathlib.Path(__file__).parents[1]
+        root = pathlib.Path(__file__).parents[2]
         artwork_path = root.joinpath("artwork")
         if not artwork_path.is_dir():
-            raise Exception.FileNotFoundError
+            raise FileNotFoundError
         return artwork_path
 
     def load_icons(self):

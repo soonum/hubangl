@@ -34,13 +34,13 @@ Launch HUBAngl
 
 .. code:: bash
 
-	  $ ./hubangl
+	  $ ./src/hubangl
 
 Loading a session configuration from a file is also possible.
 
 .. code:: bash
 
-	  $ ./hubangl -l [path_to_session_filename].huba
+	  $ ./src/hubangl -l [path_to_session_filename].huba
 
 .. warning:: Be very careful when saving a session to a file. Passwords to connect to Icecast servers are stored in **plain text**.
 

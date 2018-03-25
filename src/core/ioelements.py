@@ -18,13 +18,13 @@
 #
 # Copyright (c) 2016-2018 David Testé
 
-from backend import utils
-from backend.gstelement import GstElement
-from backend.exceptions import (GstElementInitError,
-                                DeviceMissing,
-                                LocationMissing,
-                                LocationNotValid,
-                                StreamInfoIncomplete)
+from core import utils
+from core.gstelement import GstElement
+from core.exceptions import (GstElementInitError,
+                             DeviceMissing,
+                             LocationMissing,
+                             LocationNotValid,
+                             StreamInfoIncomplete)
 
 
 class InputElement:

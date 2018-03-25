@@ -27,10 +27,10 @@ from gi.repository import GdkX11
 from gi.repository import GstVideo
 from gi.repository import GObject
 
-from backend import process
-from user_interface import audio_displays
-from user_interface import menus
-from user_interface import utils
+from core import process
+from gui import audio_displays
+from gui import menus
+from gui import utils
 
 
 class Feed:
@@ -92,7 +92,7 @@ class Feed:
     def get_placeholder_pipeline(self):
         """
         Get a placeholder pipeline from
-        :class:`~backend.process.PlaceholderPipeline`
+        :class:`~core.process.PlaceholderPipeline`
         """
         return process.PlaceholderPipeline()
 
@@ -102,7 +102,7 @@ class Feed:
 
         :param mode: application mode as :class:`str`
 
-        :return: :class:`~backend.process.Pipeline` or one of it subclasses
+        :return: :class:`~core.process.Pipeline` or one of it subclasses
         """
         if mode == "standalone":
             return process.Pipeline()

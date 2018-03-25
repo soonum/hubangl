@@ -26,8 +26,8 @@ import time
 from gi.repository import Gtk
 import ipaddress
 
-from backend import process
-from user_interface import utils
+from core import process
+from gui import utils
 
 
 AUDIO_VIDEO_STREAM = process.AUDIO_VIDEO_STREAM
@@ -100,7 +100,7 @@ class AbstractMenu:
                                       callback=None):
         """
         Build a confirmation button used in every side bar menus.
-        This button triggers interaction with the backend in case of settings
+        This button triggers interaction with the core in case of settings
         changes. Otherwise it stays insensitive.
         """
         if not label:
@@ -780,7 +780,7 @@ class StreamMenu(AbstractMenu):
 
         def build_full_mountpoint(self):
             """
-            Build mountpoint used by :class:`~backend.ioelements.StreamElement`
+            Build mountpoint used by :class:`~core.ioelements.StreamElement`
             based on mountpoint entry and extension choosen.
             """
             self.full_mountpoint = (self.mountpoint
@@ -789,7 +789,7 @@ class StreamMenu(AbstractMenu):
         def get_properties(self):
             """
             Get Gstreamer properties of
-            :class:`~user_interface.StreamMenu.StreamSection` instance.
+            :class:`~gui.menus.StreamMenu.StreamSection` instance.
 
             :return: :class:`dict` as property_key: value
             """
@@ -1037,7 +1037,7 @@ class StoreMenu(AbstractMenu):
         def build_filepath(self):
             """
             Set filepath that is used by
-            :class:`~backend.ioelements.StoreElement`
+            :class:`~core.ioelements.StoreElement`
             """
             self.filepath = os.path.join(
                 self.folder_selection, self.full_filename)
@@ -1045,7 +1045,7 @@ class StoreMenu(AbstractMenu):
         def get_properties(self):
             """
             Get Gstreamer properties of
-            :class:`~user_interface.StoreMenu.StoreSection` instance.
+            :class:`~gui.menus.StoreMenu.StoreSection` instance.
 
             :return: :class:`dict` as property_key: value
             """

@@ -20,9 +20,9 @@
 
 from gi.repository import Gst
 
-from backend.exceptions import (GstElementInitError,
-                                GstElementNotTeeIO,
-                                LinkingElementError,)
+from core.exceptions import (GstElementInitError,
+                             GstElementNotTeeIO,
+                             LinkingElementError,)
 
 
 class GstElement:

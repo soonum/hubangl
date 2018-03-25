@@ -24,9 +24,9 @@ import pathlib
 from gi.repository import Gtk
 from gi.repository import Gdk
 
-from user_interface import feed
-from user_interface import images
-from user_interface import utils
+from gui import feed
+from gui import images
+from gui import utils
 
 
 class MainWindow:

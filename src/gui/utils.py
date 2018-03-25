@@ -20,7 +20,7 @@
 
 from gi.repository import Gtk
 
-from user_interface import images
+from gui import images
 
 
 images = images.HubanglImages()

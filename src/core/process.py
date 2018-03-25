@@ -24,23 +24,19 @@ import pathlib
 from gi.repository import Gst
 from gi.repository import GLib
 
-from backend import iofetch
-from backend import ioelements
-from backend.gstelement import GstElement
-from backend.exceptions import (GstElementInitError,
-                                GstElementNotTeeIO,
-                                TeePatchingError,
-                                LinkingElementError,
-                                AddingElementError,
-                                NotAudioVideoSource,
-                                NotStoreStreamSink,
-                                ElementAlreadyAdded,
-                                TransportElementNotFound)
+from core import iofetch
+from core import ioelements
+from core.gstelement import GstElement
+from core.exceptions import (TeePatchingError,
+                             AddingElementError,
+                             NotAudioVideoSource,
+                             ElementAlreadyAdded,
+                             TransportElementNotFound)
 
 CUR_ELEM = None  # DEBUG
 NEW_ELEM = None  # DEBUG
 CUR_BIN = None  # DEBUG
-DEFAULT_IMAGE = (pathlib.Path(__file__).resolve().parents[1]
+DEFAULT_IMAGE = (pathlib.Path(__file__).resolve().parents[2]
                  / "artwork"
                  / "HUBAngl_logo_PNG_256-256_px.png")
 DEFAULT_IP = "127.0.0.1"
@@ -386,10 +382,10 @@ class Pipeline:
 
     def update_gstelement_properties(self, gstelement, **kargs):
         """
-        Update properties of a :class:`~backend.GstElement` if there is any
+        Update properties of a :class:`~core.GstElement` if there is any
         change to make.
 
-        :param gstelement: :class:`~backend.GstElement`
+        :param gstelement: :class:`~core.GstElement`
         :param kargs: field to update with property key as :class:`str` and
             value of the right type
         """
@@ -416,12 +412,12 @@ class Pipeline:
 
     def swap_gstelement(self, current_element, requested_element):
         """
-        Swap two :class:`~backend.gstelement.Gstelement` dynamically
+        Swap two :class:`~core.gstelement.Gstelement` dynamically
         without pausing/stopping pipeline.
 
-        :param current_element: :class:`~backend.gstelement.Gstelement`
+        :param current_element: :class:`~core.gstelement.Gstelement`
             currently in the pipeline
-        :param requested_element: :class:`~backend.gstelement.Gstelement`
+        :param requested_element: :class:`~core.gstelement.Gstelement`
             to add and link in the pipeline
         """
         blockpad = current_element.get_static_pad("src")
@@ -608,7 +604,7 @@ class Pipeline:
         """
         Fetching GStreamer element in a piepline.
 
-        :param element: instance of :class:`~backend.gstelement.GstElement`
+        :param element: instance of :class:`~core.gstelement.GstElement`
 
         :return: Gstreamer element
         """
@@ -620,7 +616,7 @@ class Pipeline:
         The first match will be returned.
 
         :param element: name attribute of
-            :class:`~backend.ioelement.Input`
+            :class:`~core.ioelement.Input`
 
         :return: Gstreamer element
         """
@@ -933,7 +929,7 @@ class Pipeline:
         :param password: password as :class:`str` that allows to add a
             mountpoint
 
-        :return: :class:`~backend.ioelements.StreamElement`
+        :return: :class:`~core.ioelements.StreamElement`
         """
         id = str(len(self.stream_sink_branches[feed_type]["branches"]))
 
@@ -958,7 +954,7 @@ class Pipeline:
             ``video`` as :class:`str`
         :param filepath: full filepath as :class:`str`
 
-        :return: :class:`~backend.ioelements.StoreElement`
+        :return: :class:`~core.ioelements.StoreElement`
         """
         id = str(len(self.store_sink_branches[feed_type]["branches"]))
 
@@ -1155,9 +1151,9 @@ class Pipeline:
         --->/tee_output_audiovideo/
                  |---<to output branches>
 
-        :param audio_muxer_source: :class:`~backend.gstelement.GstElement`
+        :param audio_muxer_source: :class:`~core.gstelement.GstElement`
             providing audio feed
-        :param video_muxer_source: :class:`~backend.gstelement.GstElement`
+        :param video_muxer_source: :class:`~core.gstelement.GstElement`
             providing video feed
 
         :return: a :class:`tuple` of branches
@@ -1240,7 +1236,7 @@ class Monitoring(Pipeline):
 
         :param parents: streams (audio and/or video) to send
 
-        :return: a :class:`tuple` of :class:`~backend.gstelement.GstElement`
+        :return: a :class:`tuple` of :class:`~core.gstelement.GstElement`
         """
         funnel = GstElement("funnel", "", tee_output=True, parents=parents)
         #tcp_client_sink = GstElement("tcpclientsink", "tcp_client_sink")
