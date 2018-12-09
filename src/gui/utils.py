@@ -67,6 +67,25 @@ def build_confirm_dialog(message_type, primary_text, secondary_text=None,
     dialog.run()
 
 
+def build_info_dialog(primary_text, secondary_text=None, title="Info"):
+    """
+    Create a :class:`Gtk.MessageDialog` displaying user information.
+
+    :param primary_text: primary text displayed to user as :class`str`
+    :param secondary_text: secondary text displayed to user as :class`str`
+    """
+    dialog = Gtk.MessageDialog(
+        message_type=Gtk.MessageType.INFO, message_format=primary_text)
+    dialog.set_icon_from_file(images.logo_favicon_path)
+    dialog.set_title(title)
+    dialog.format_secondary_text(secondary_text)
+    dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+    dialog.set_modal(True)
+    dialog.connect("response", default_callback)
+
+    dialog.run()
+
+
 def build_error_dialog(primary_text, secondary_text=None, on_signal=None,
                        callback=None):
     """
@@ -88,15 +107,14 @@ def build_error_dialog(primary_text, secondary_text=None, on_signal=None,
     if on_signal and callback:
         dialog.connect(on_signal, callback)
     else:
-        dialog.connect("response", default_error_callback)
+        dialog.connect("response", default_callback)
 
     dialog.run()
 
 
-def default_error_callback(dialog, response_id):
+def default_callback(dialog, response_id):
     """
-    Default callback called when there is no callback provided to
-    :meth:`build_error_dialog`.
+    Default callback called when there is no callback provided to a dialog box.
     """
     if (response_id == Gtk.ResponseType.CLOSE
             or response_id == Gtk.ResponseType.DELETE_EVENT):

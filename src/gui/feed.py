@@ -353,7 +353,15 @@ class ControlBar:
 
         if (not self.video_menu.current_video_source
                 and not self.audio_menu.current_audio_source):
+            utils.build_info_dialog("Select an input source",
+                                    secondary_text="Go to Feed > Inputs")
             return
+        elif (not self.stream_menu.has_sink_set()
+                and not self.store_menu.has_sink_set()):
+            utils.build_info_dialog("Select an output sink",
+                                    secondary_text="Go to Feed > Outputs")
+            return
+
         self._switch_widget_icons(widget, "play")
 
         # Ensure placeholder pipeline is stopped first in case of
@@ -384,7 +392,7 @@ class ControlBar:
         for feed_streamed in self.stream_menu.feeds:
             feed_streamed.build_full_mountpoint()
             self._pipeline.update_gstelement_properties(
-                feed_streamed.streamsink, **feed_streamed.get_properties())
+                feed_streamed.sink, **feed_streamed.get_properties())
             feed_streamed.full_filename_label.set_label(
                 feed_streamed.element_name)
 
@@ -392,7 +400,7 @@ class ControlBar:
             feed_recorded.create_unique_filename()
             feed_recorded.build_filepath()
             self._pipeline.update_gstelement_properties(
-                feed_recorded.filesink, **feed_recorded.get_properties())
+                feed_recorded.sink, **feed_recorded.get_properties())
             feed_recorded.full_filename_label.set_label(
                 feed_recorded.full_filename)
 

@@ -364,6 +364,19 @@ class AbstractMenu:
                 comboboxtext_widget.set_active(index)
                 break
 
+    def has_sink_set(self):
+        """
+        Check if, at least, one  output sink has been set.
+
+        :return: ``True`` if a sink has been set, ``False`` otherwise
+        """
+        if not self.feeds:
+            return False
+
+        for feed in self.feeds:
+            if feed.sink:
+                return True
+
     def on_format_radiobutton_toggle(self, widget):
         raise NotImplementedError
 
@@ -727,7 +740,7 @@ class StreamMenu(AbstractMenu):
             self.vbox = self._build_newstream_vbox()
             self.summary_vbox = None
 
-            self.streamsink = None
+            self.sink = None
 
         def _build_newstream_vbox(self):
             """
@@ -876,8 +889,8 @@ class StreamMenu(AbstractMenu):
 
             self.element_name = self.mountpoint.split("/")[-1]
             self.build_full_mountpoint()
-            if not self.streamsink:
-                self.streamsink = self.pipeline.create_stream_branch(
+            if not self.sink:
+                self.sink = self.pipeline.create_stream_branch(
                     self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
 
@@ -968,7 +981,7 @@ class StoreMenu(AbstractMenu):
             self.vbox = self._build_newfile_vbox()
             self.summary_vbox = None
 
-            self.filesink = None
+            self.sink = None
 
         def _build_newfile_vbox(self):
             """
@@ -1119,8 +1132,8 @@ class StoreMenu(AbstractMenu):
             self.create_unique_filename()
             self.build_filepath()
             element_name = self.current_stream_type + "_" + self.filename
-            if not self.filesink:
-                self.filesink = self.pipeline.create_store_branch(
+            if not self.sink:
+                self.sink = self.pipeline.create_store_branch(
                     self.current_stream_type, self.filepath, element_name)
 
             if not self.summary_vbox:
