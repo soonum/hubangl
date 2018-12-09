@@ -351,10 +351,10 @@ class ControlBar:
         self.stop_button.set_icon_widget(self.images.get_regular_icon("stop"))
         self.stop_button.set_sensitive(True)
 
-        self._switch_widget_icons(widget, "play")
         if (not self.video_menu.current_video_source
                 and not self.audio_menu.current_audio_source):
             return
+        self._switch_widget_icons(widget, "play")
 
         # Ensure placeholder pipeline is stopped first in case of
         # loading a session configuration
