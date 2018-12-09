@@ -454,24 +454,19 @@ class MainWindow:
                 self.current_app.feed.controls.stop_button)
 
     def on_video_input_clicked(self, widget):
-        self.current_app.feed.controls.on_video_clicked(
-                self.current_app.feed.controls.video_button)
+        self.current_app.feed.video_menu.on_video_input_clicked(widget)
 
     def on_audio_input_clicked(self, widget):
-        self.current_app.feed.controls.on_audio_clicked(
-                self.current_app.feed.controls.audio_button)
+        self.current_app.feed.audio_menu.on_audio_input_clicked(widget)
 
     def on_stream_clicked(self, widget):
-        self.current_app.feed.controls.on_stream_clicked(
-                self.current_app.feed.controls.stream_button)
+        self.current_app.feed.stream_menu.on_stream_clicked(widget)
 
     def on_store_clicked(self, widget):
-        self.current_app.feed.controls.on_store_clicked(
-                self.current_app.feed.controls.store_button)
+        self.current_app.feed.store_menu.on_store_clicked(widget)
 
     def on_settings_clicked(self, widget):
-        self.current_app.feed.controls.on_settings_clicked(
-                self.current_app.feed.controls.settings_button)
+        self.current_app.feed.settings_menu.on_settings_clicked(widget)
 
     def on_menu_item_new_activate(self, widget):
         pass

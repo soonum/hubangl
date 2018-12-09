@@ -310,36 +310,6 @@ class ControlBar:
             on_signal="clicked",
             callback=self.on_stop_clicked
         )
-        self.video_button = self._build_toolbutton(
-            "VIDEO",
-            self.images.icons["camera"]["regular"],
-            on_signal="clicked",
-            callback=self.on_video_clicked,
-        )
-        self.audio_button = self._build_toolbutton(
-            "Audio",
-            self.images.icons["micro"]["regular"],
-            on_signal="clicked",
-            callback=self.on_audio_clicked
-        )
-        self.stream_button = self._build_toolbutton(
-            "Stream",
-            self.images.icons["streaming"]["regular"],
-            on_signal="clicked",
-            callback=self.on_stream_clicked
-        )
-        self.store_button = self._build_toolbutton(
-            "Store",
-            self.images.icons["storage"]["regular"],
-            on_signal="clicked",
-            callback=self.on_store_clicked
-        )
-        self.settings_button = self._build_toolbutton(
-            "Settings",
-            self.images.icons["settings"]["regular"],
-            on_signal="clicked",
-            callback=self.on_settings_clicked
-        )
         self.mute_button = self._build_toolbutton(
             "Mute",
             self.images.icons["speaker"]["striked"],
@@ -350,11 +320,6 @@ class ControlBar:
         self._populate_toolbar(toolbar,
                                self.play_button,
                                self.stop_button,
-                               self.video_button,
-                               self.audio_button,
-                               self.stream_button,
-                               self.store_button,
-                               self.settings_button,
                                self.mute_button)
         return toolbar
 
@@ -380,20 +345,6 @@ class ControlBar:
                                                widget.get_icon_widget())
         widget.set_icon_widget(icon)
         widget.show_all()
-
-    def set_regular_icons(self):
-        """
-        Switch icons that open a menu to their regular version.
-        """
-        icon_mapping = {self.video_button: "camera",
-                        self.audio_button: "micro",
-                        self.stream_button: "streaming",
-                        self.store_button: "storage",
-                        self.settings_button: "settings"}
-
-        for widget, icon_name in icon_mapping.items():
-            widget.set_icon_widget(self.images.get_regular_icon(icon_name))
-            widget.show_all()
 
     def on_play_clicked(self, widget):
 
@@ -444,31 +395,6 @@ class ControlBar:
                 feed_recorded.filesink, **feed_recorded.get_properties())
             feed_recorded.full_filename_label.set_label(
                 feed_recorded.full_filename)
-
-    def on_video_clicked(self, widget):
-        self.set_regular_icons()
-        if self.video_menu.on_video_input_clicked(widget):
-            self._switch_widget_icons(widget, "camera")
-
-    def on_audio_clicked(self, widget):
-        self.set_regular_icons()
-        if self.audio_menu.on_audio_input_clicked(widget):
-            self._switch_widget_icons(widget, "micro")
-
-    def on_stream_clicked(self, widget):
-        self.set_regular_icons()
-        if self.stream_menu.on_stream_clicked(widget):
-            self._switch_widget_icons(widget, "streaming")
-
-    def on_store_clicked(self, widget):
-        self.set_regular_icons()
-        if self.store_menu.on_store_clicked(widget):
-            self._switch_widget_icons(widget, "storage")
-
-    def on_settings_clicked(self, widget):
-        self.set_regular_icons()
-        if self.settings_menu.on_settings_clicked(widget):
-            self._switch_widget_icons(widget, "settings")
 
     def on_mute_clicked(self, widget):
         if self._pipeline.speaker_volume.get_property("mute"):
