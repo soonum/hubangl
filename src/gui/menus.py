@@ -27,6 +27,7 @@ from gi.repository import Gtk
 import ipaddress
 
 from core import process
+from core import watch
 from gui import utils
 
 
@@ -880,6 +881,8 @@ class StreamMenu(AbstractMenu):
                 self.stream_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
+            previous_address = self.address
+            previous_port = self.port
             try:
                 self.address, self.port = self.get_ip_address()
             except Exception:
@@ -887,12 +890,18 @@ class StreamMenu(AbstractMenu):
                 # created.
                 return
 
+            if previous_address != self.address or previous_port != self.port:
+                watch.get_remote_watcher().remove_watcher(
+                    (previous_address, previous_port))
+
             self.element_name = self.mountpoint.split("/")[-1]
             self.build_full_mountpoint()
             if not self.sink:
                 self.sink = self.pipeline.create_stream_branch(
                     self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
+
+            watch.get_remote_watcher().add_watcher((self.address, self.port))
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(self.element_name)

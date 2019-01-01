@@ -29,6 +29,7 @@ gi.require_version('Gtk', '3.0')  # NOQA
 from gi.repository import Gst
 from gi.repository import Gtk
 
+import core.watch
 import gui.main_window
 
 
@@ -104,6 +105,10 @@ def get_args(parser):
 if __name__ == "__main__":
     args = get_args(create_input_args())
 
+    core.watch.setup()
+
     Gst.init(None)
     gui.main_window.MainWindow(args)
     Gtk.main()
+
+    core.watch.shutdown()
