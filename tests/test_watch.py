@@ -65,20 +65,19 @@ class TestRemoteWatcher(unittest.TestCase):
         self.assertNotEqual(self.watcher._elements, {})
 
     def test_add_watcher(self):
-        self.watcher.add_watcher(self.address)
-        element = self.watcher._elements[self.address]
-        self.assertTrue(isinstance(element, watch.RemoteElement))
+        element_1 = self.watcher.add_watcher(self.address)
+        self.assertTrue(isinstance(element_1, watch.RemoteElement))
 
         # Several call with the same argument does nothing
-        self.watcher.add_watcher(self.address)
+        element_2 = self.watcher.add_watcher(self.address)
         self.assertEqual(len(self.watcher._elements), 1)
-        self.assertIs(self.watcher._elements[self.address], element)
+        self.assertIs(element_2, element_1)
 
     def test_remove_watcher(self):
         self.watcher.add_watcher(self.address)
 
         self.watcher.remove_watcher(self.address)
-        self.assertEqual(self.watcher._elements, {})
+        self.assertNotIn(self.address, self.watcher._elements)
 
 
 class TestRemoteElement(unittest.TestCase):

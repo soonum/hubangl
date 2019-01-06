@@ -115,20 +115,28 @@ class RemoteWatcher:
         create a new watcher.
 
         :param address: :class:`tuple` as ``(host, port)``
+
+        :return: watched element
         """
         try:
-            self._elements[address]
+            element = self._elements[address]
         except KeyError:
-            self._elements[address] = RemoteElement(address)
+            element = self._elements[address] = RemoteElement(address)
+
+        return element
 
     def remove_watcher(self, address):
         """
         Remove a watcher to the element represented by its ``address``.
 
         :param address: :class:`tuple` as ``(host, port)``
+
+        :return: watched element or ``None`` if the element was not referenced
         """
         try:
+            element = self._elements[address]
             del self._elements[address]
+            return element
         except KeyError:
             pass
 
