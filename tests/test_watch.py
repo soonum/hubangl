@@ -114,31 +114,27 @@ class TestRemoteElement(unittest.TestCase):
 
     def test_set_state_ping_failed_host_not_running(self):
         self.element._set_state(False, True, self.latency)
-        result = self.element.get_state()
 
-        self.assertFalse(result["available"])
-        self.assertIsNotNone(result["unavailable_since"])
-        self.assertFalse(result["host_running"])
-        self.assertTrue(result["port_open"])
-        self.assertEqual(result["latency"], self.latency)
+        self.assertFalse(self.element.available)
+        self.assertIsNotNone(self.element.unavailable_since)
+        self.assertFalse(self.element.host_running)
+        self.assertTrue(self.element.port_open)
+        self.assertEqual(self.element.latency, self.latency)
 
     def test_set_state_ping_failed_port_closed(self):
         self.element._set_state(True, False, self.latency)
-        result = self.element.get_state()
 
-        self.assertFalse(result["available"])
-        self.assertIsNotNone(result["unavailable_since"])
-        self.assertTrue(result["host_running"])
-        self.assertFalse(result["port_open"])
-        self.assertEqual(result["latency"], self.latency)
+        self.assertFalse(self.element.available)
+        self.assertIsNotNone(self.element.unavailable_since)
+        self.assertTrue(self.element.host_running)
+        self.assertFalse(self.element.port_open)
+        self.assertEqual(self.element.latency, self.latency)
 
     def _assert_in_unknown_state(self):
-        result = self.element.get_state()
-
-        self.assertTrue(result["unknown_state"])
-        self.assertFalse(result["host_running"])
-        self.assertFalse(result["port_open"])
-        self.assertEqual(result["latency"], -1)
+        self.assertTrue(self.element.unknown_state)
+        self.assertFalse(self.element.host_running)
+        self.assertFalse(self.element.port_open)
+        self.assertEqual(self.element.latency, -1)
 
     @unittest.mock.patch("core.watch.REMOTE_PING_TIMEOUT", .1)
     def test_ping_timeout(self):

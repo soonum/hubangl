@@ -20,6 +20,7 @@
 
 import collections
 import concurrent.futures
+import socket
 import subprocess
 import time
 
@@ -175,6 +176,38 @@ class RemoteElement:
 
         # nmap based ping command
         self._ping_command = ["nmap", "-p", str(self._port), self._host]
+
+    @property
+    def hostname(self):
+        return socket.gethostbyaddr(self._host)[0]
+
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def available(self):
+        return self._available
+
+    @property
+    def unavailable_since(self):
+        return self._unavailable_since
+
+    @property
+    def unknown_state(self):
+        return self._unknown_state
+
+    @property
+    def host_running(self):
+        return self._host_running
+
+    @property
+    def port_open(self):
+        return self._port_open
+
+    @property
+    def latency(self):
+        return self._latency
 
     def ping(self):
         """
