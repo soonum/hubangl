@@ -25,7 +25,7 @@ import subprocess
 import time
 
 
-# Duration in seconds between to remote check wave.
+# Duration in seconds between two remote check wave.
 REMOTE_CHECK_FREQUENCY = 5
 # Duration after which we stop waiting for a reply from the server
 REMOTE_PING_TIMEOUT = .5
@@ -100,9 +100,10 @@ class RemoteWatcher:
         """
         This method is supposed to be run in an executor.
         """
-        time.sleep(REMOTE_CHECK_FREQUENCY)
         for element in self._elements.values():
             element.ping()
+
+        time.sleep(REMOTE_CHECK_FREQUENCY)
 
     def _on_check_done(self, fut):
         if not self._shutting_down:
@@ -207,7 +208,7 @@ class RemoteElement:
 
     @property
     def latency(self):
-        return self._latency
+        return round(self._latency, 3)
 
     def ping(self):
         """
