@@ -460,9 +460,6 @@ class VideoMenu(AbstractMenu):
         self.video_confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
 
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        separator.set_margin_top(6)
-
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
@@ -471,8 +468,7 @@ class VideoMenu(AbstractMenu):
                            self.usb_sources,
                            self.ip_radiobutton,
                            self.address_entries,
-                           self.video_confirm_button,
-                           separator)
+                           self.video_confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -592,9 +588,6 @@ class AudioMenu(AbstractMenu):
         self.audio_confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
 
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        separator.set_margin_top(6)
-
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
@@ -602,8 +595,7 @@ class AudioMenu(AbstractMenu):
                            self.mic_sources,
                            self.mute_checkbutton,
                            self.output_sinks,
-                           self.audio_confirm_button,
-                           separator)
+                           self.audio_confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -701,15 +693,11 @@ class StreamMenu(AbstractMenu):
         self.stream_add_button = self._build_add_button(
             callback=self.on_add_clicked)
 
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        separator.set_margin_top(6)
-
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
                            header,
                            self.settings_revealer,
-                           separator,
                            self.stream_add_button)
         self._make_scrolled_window(vbox)
         return vbox
@@ -951,15 +939,11 @@ class StoreMenu(AbstractMenu):
         self.store_add_button = self._build_add_button(
             callback=self.on_add_clicked)
 
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        separator.set_margin_top(6)
-
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
                            header,
                            self.settings_revealer,
-                           separator,
                            self.store_add_button)
         self._make_scrolled_window(vbox)
         return vbox
@@ -1236,9 +1220,6 @@ class SettingsMenu(AbstractMenu):
         self.settings_confirm_button.set_label("Confirm")
         self.settings_confirm_button.set_size_request(250, 20)
 
-        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        separator.set_margin_top(6)
-
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
@@ -1249,8 +1230,7 @@ class SettingsMenu(AbstractMenu):
                            self.image_chooser_button,
                            self.image_position_combobox,
                            self.hide_image_checkbutton,
-                           self.settings_confirm_button,
-                           separator)
+                           self.settings_confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
 
