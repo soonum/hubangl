@@ -138,7 +138,8 @@ class Feed:
         hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
         hbox.set_halign(Gtk.Align.END)
         hbox.set_margin_top(6)
-        hbox.set_margin_bottom(6)
+        hbox.set_margin_bottom(12)
+        hbox.set_margin_end(12)
         # Hide the box until an audio signal is received
         hbox.set_no_show_all(True)
         utils.pack_widgets(hbox, self.audio_level_display.drawing_area)
