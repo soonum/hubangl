@@ -243,7 +243,7 @@ class AbstractMenu:
             combo_box.connect("changed", callback_combo)
 
         hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-        hbox.set_margin_left(24)
+        hbox.set_margin_start(24)
         utils.pack_widgets(hbox, text_label, combo_box)
 
         return (radio_button, hbox, combo_box)
@@ -442,7 +442,7 @@ class VideoMenu(AbstractMenu):
                 self.usb_sources.append_text(source.name)
                 self.sources_list.append(source.name)
         self.usb_sources.connect("changed", self.on_usb_input_change)
-        self.usb_sources.set_margin_left(24)
+        self.usb_sources.set_margin_start(24)
         self.video_usb_widgets.append(self.usb_sources)
 
         self.ip_radiobutton = Gtk.RadioButton(
@@ -452,7 +452,7 @@ class VideoMenu(AbstractMenu):
         self.ip_radiobutton.set_sensitive(False)
 
         self.address_entries = self._build_address_entries()
-        self.address_entries.set_margin_left(24)
+        self.address_entries.set_margin_start(24)
 
         self.video_ip_widgets.append(self.address_entries)
         self._make_widget_unavailable(*self.video_ip_widgets)
@@ -461,7 +461,8 @@ class VideoMenu(AbstractMenu):
             callback=self.on_confirm_clicked)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.set_margin_right(6)
+        vbox.set_margin_top(6)
+        vbox.set_margin_end(6)
         utils.pack_widgets(vbox,
                            header,
                            self.usb_radiobutton,
@@ -569,7 +570,7 @@ class AudioMenu(AbstractMenu):
             self.mic_sources.append_text(source.name)
             self.sources_list.append(source.name)
         self.mic_sources.connect("changed", self.on_input_change)
-        self.mic_sources.set_margin_left(24)
+        self.mic_sources.set_margin_start(24)
 
         self.mute_checkbutton = Gtk.CheckButton("Mute")
         self.mute_checkbutton.connect("toggled", self.on_mute_toggle)
@@ -583,13 +584,14 @@ class AudioMenu(AbstractMenu):
                 self.output_sinks.set_active(index)
             index += 1
         self.output_sinks.connect("changed", self.on_output_change)
-        self.output_sinks.set_margin_left(24)
+        self.output_sinks.set_margin_start(24)
 
         self.audio_confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.set_margin_right(6)
+        vbox.set_margin_top(6)
+        vbox.set_margin_end(6)
         utils.pack_widgets(vbox,
                            header,
                            self.mic_sources,
@@ -694,7 +696,7 @@ class StreamMenu(AbstractMenu):
             callback=self.on_add_clicked)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.set_margin_right(6)
+        vbox.set_margin_end(6)
         utils.pack_widgets(vbox,
                            header,
                            self.settings_revealer,
@@ -781,7 +783,8 @@ class StreamMenu(AbstractMenu):
             self.stream_confirm_button.set_label("Create")
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            vbox.set_margin_right(6)
+            vbox.set_margin_top(6)
+            vbox.set_margin_end(6)
             utils.pack_widgets(vbox,
                                address_hbox,
                                mountpoint_hbox,
@@ -940,7 +943,7 @@ class StoreMenu(AbstractMenu):
             callback=self.on_add_clicked)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.set_margin_right(6)
+        vbox.set_margin_end(6)
         utils.pack_widgets(vbox,
                            header,
                            self.settings_revealer,
@@ -1026,6 +1029,8 @@ class StoreMenu(AbstractMenu):
             self.store_confirm_button.set_label("Create")
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            vbox.set_margin_top(6)
+            vbox.set_margin_end(6)
             utils.pack_widgets(vbox,
                                self.folder_chooser_button,
                                name_hbox,
@@ -1193,7 +1198,7 @@ class SettingsMenu(AbstractMenu):
         for position in self.positions:
             self.text_position_combobox.append_text(position)
         self.text_position_combobox.set_active(0)
-        self.text_position_combobox.set_margin_left(24)
+        self.text_position_combobox.set_margin_start(24)
         self.text_position_combobox.set_sensitive(False)  # DEV
 
         self.hide_text_checkbutton = Gtk.CheckButton("Hide Text")
@@ -1208,7 +1213,7 @@ class SettingsMenu(AbstractMenu):
         for position in self.positions:
             self.image_position_combobox.append_text(position)
         self.image_position_combobox.set_active(1)
-        self.image_position_combobox.set_margin_left(24)
+        self.image_position_combobox.set_margin_start(24)
         self.image_position_combobox.set_sensitive(False)  # DEV
 
         self.hide_image_checkbutton = Gtk.CheckButton("Hide Image")
@@ -1221,7 +1226,8 @@ class SettingsMenu(AbstractMenu):
         self.settings_confirm_button.set_size_request(250, 20)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.set_margin_right(6)
+        vbox.set_margin_top(6)
+        vbox.set_margin_end(6)
         utils.pack_widgets(vbox,
                            header,
                            self.text_overlay_entry,
