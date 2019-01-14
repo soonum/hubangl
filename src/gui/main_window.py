@@ -26,6 +26,7 @@ from gi.repository import Gdk
 
 from gui import feed
 from gui import images
+from gui import status_bar
 from gui import utils
 
 
@@ -66,8 +67,11 @@ class MainWindow:
         )
         self.menu_item_help = self._build_menu_help(self.menu_bar)
 
+        self.status_bar = status_bar.get_status_bar()
+
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.main_vbox.pack_start(self.menu_bar, False, False, 0)
+        self.main_vbox.pack_end(self.status_bar.container, False, False, 0)
         self.main_vbox.pack_end(self.current_app_container, True, True, 0)
 
         self.window.add(self.main_vbox)

@@ -28,6 +28,7 @@ import ipaddress
 
 from core import process
 from core import watch
+from gui import status_bar
 from gui import utils
 
 
@@ -891,8 +892,10 @@ class StreamMenu(AbstractMenu):
                 return
 
             if previous_address != self.address or previous_port != self.port:
-                watch.get_remote_watcher().remove_watcher(
+                element = watch.get_remote_watcher().remove_watcher(
                     (previous_address, previous_port))
+                if element:
+                    status_bar.get_status_bar().remove_remote_element(element)
 
             self.element_name = self.mountpoint.split("/")[-1]
             self.build_full_mountpoint()
@@ -901,7 +904,9 @@ class StreamMenu(AbstractMenu):
                     self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
 
-            watch.get_remote_watcher().add_watcher((self.address, self.port))
+            element = watch.get_remote_watcher().add_watcher((self.address,
+                                                              self.port))
+            status_bar.get_status_bar().add_remote_element(element)
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(self.element_name)

@@ -58,7 +58,11 @@ class HubanglImages:
                       "slides": {"regular": None,
                                  "regular_16px": None,
                                  "activated": None},
-        }
+                      "square_red": {"regular": None,
+                                     "regular_16px": None},
+                      "square_green": {"regular": None,
+                                       "regular_16px": None}
+                      }
         self.load_icons()
         self.load_logos()
 

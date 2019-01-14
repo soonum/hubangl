@@ -16,24 +16,33 @@
 # You should have received a copy of the GNU General Public License
 # along with HUBAngl.  If not, see <http://www.gnu.org/licenses/>.
 #
-# Copyright (c) 2016-2018 David Testé
+# Copyright (c) 2016-2019 David Testé
 
 import abc
+import concurrent.futures
+import time
 
 from gi.repository import Gtk
 
 from gui import images
 
 
+# Duration in seconds between two status update wave
+UPDATE_STATUS_FREQUENCY = .5
+
+_images = images.HubanglImages()
+
+
 class StatusBar:
     """
-    Give information about the status of watched elements via
+    Widget giving information about the state of watched elements via
     :mod:`~core.watch`.
     """
     def __init__(self):
-        self._images = images.HubanglImages()
-        self._stream_icon = self._images.icons["streaming"]["regular_16px"]
-        self._store_icon = self._images.icons["storage"]["regular_16px"]
+        self._is_shutting_down = False
+
+        self._stream_icon = _images.icons["streaming"]["regular_16px"]
+        self._store_icon = _images.icons["storage"]["regular_16px"]
 
         self._elements = set()
 
@@ -41,8 +50,12 @@ class StatusBar:
          self._hbox_remote,
          self._hbox_local) = self._build_status_bar()
 
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self._update_task = self._executor.submit(self._update_status)
+
     def _build_status_bar(self):
         hbox_main = Gtk.Box()
+        hbox_main.connect("destroy", self._on_destroy)
         hbox_remote = self._build_watching_box(self._stream_icon)
         hbox_local = self._build_watching_box(self._store_icon)
         separator = Gtk.VSeparator()
@@ -59,6 +72,23 @@ class StatusBar:
         hbox.set_no_show_all(True)
         return hbox
 
+    def _on_destroy(self, widget):
+        self._is_shutting_down = True
+        self._update_task.cancel()
+        self._update_task.done()
+        self._executor.shutdown()
+
+    def _update_status(self):
+        """
+        Update periodically the status of all watched elements.
+        This method is supposed to be run in an executor.
+        """
+        while not self._is_shutting_down:
+            for watched_element in self._elements:
+                watched_element.update_content()
+
+            time.sleep(UPDATE_STATUS_FREQUENCY)
+
     def get_watched_element(self, element):
         for watched_element in self._elements:
             if element is watched_element.element:
@@ -66,12 +96,18 @@ class StatusBar:
 
     def add_local_element(self, element):
         """
+        Add a local watched ``element`` into the status bar.
+
+        :param element: :class:`core.watch.LocalElement`
         """
         watched_element = WatchedLocal(element)
         self._add_watched_element(self._hbox_local, watched_element)
 
     def add_remote_element(self, element):
         """
+        Add a remote watched ``element`` into the status bar.
+
+        :param element: :class:`core.watch.RemoteElement`
         """
         watched_element = WatchedRemote(element)
         self._add_watched_element(self._hbox_remote, watched_element)
@@ -79,7 +115,7 @@ class StatusBar:
     def _add_watched_element(self, box, watched_element):
         # Keeping a reference is needed to handle its callbacks properly
         self._elements.add(watched_element)
-        box.pack_start(watched_element.button, True, True, 3)
+        box.pack_start(watched_element.button, True, True, 0)
 
         if box.get_no_show_all():
             box.set_no_show_all(False)
@@ -87,11 +123,17 @@ class StatusBar:
 
     def remove_local_element(self, element):
         """
+        Remove a local watched ``element`` from the status bar.
+
+        :param element: :class:`core.watch.LocalElement`
         """
         self._remove_watched_element(self._hbox_local, element)
 
     def remove_remote_element(self, element):
         """
+        Remove a remote watched ``element`` from the status bar.
+
+        :param element: :class:`core.watch.RemoteElement`
         """
         self._remove_watched_element(self._hbox_remote, element)
 
@@ -111,26 +153,23 @@ class StatusBar:
 
 class WatchedElement:
     def __init__(self, element):
+        self._red_square = _images.icons["square_red"]["regular_16px"]
+        self._green_square = _images.icons["square_green"]["regular_16px"]
+
         self.element = element
+
         self.button = self._build_color_button()
 
     def _build_color_button(self):
-        button = Gtk.Button()
+        button = Gtk.ToolButton()
+        # Set color as "unavailable element" by default
+        button.set_icon_widget(self._red_square)
         button.connect("clicked", self._on_clicked)
-        # DEV note: Ajouter une image à ce bouton (un cercle vert et un switch en cercle rouge)
-        # DEV note: retirer le relief du bouton une fois l'image ajoutée
-
         return button
 
     def _on_clicked(self, widget):
         self.info_popover.set_relative_to(widget)
         self.info_popover.show_all()
-
-    @abc.abstractmethod
-    def _build_info_popover(self):
-        """
-        Build a popover for this watched element
-        """
 
     def _build_subbox(self, label, value):
         """
@@ -144,15 +183,31 @@ class WatchedElement:
         box.pack_end(value, False, False, 6)
         return box
 
+    @abc.abstractmethod
+    def _build_info_popover(self):
+        """
+        Build a popover for this watched element.
+        """
+
+    @abc.abstractmethod
+    def update_content(self):
+        """
+        Update button color and content popover content.
+        """
+
 
 class WatchedLocal(WatchedElement):
     """
+    Representation of a local watched element.
+
+    :param element: :class:`~core.watch.LocalElement`
     """
     def __init__(self, element):
         super().__init__(element)
         self.info_popover = self._build_info_popover()
 
     def _build_info_popover(self):
+        # Build an empty popover
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         popover = Gtk.Popover()
@@ -161,29 +216,52 @@ class WatchedLocal(WatchedElement):
 
         return popover
 
+    def update_content(self):
+        pass
+
 
 class WatchedRemote(WatchedElement):
     """
+    Representation of a remote watched element.
+
+    :param element: :class:`~core.watch.RemoteElement`
     """
     def __init__(self, element):
         super().__init__(element)
 
+        self._host_running_values = {True: "Up", False: "Down", None: "N/A"}
+        self._port_open_values = {True: "Open", False: "Closed", None: "N/A"}
+
         self._hostname = Gtk.Label(self.element.hostname)
-        print("\thostname :", self.element.hostname, flush=True)
-        self._host_running = Gtk.Label(self.element.host_running)
+        self._host_running = Gtk.Label(
+            self._host_running_values[self.element.host_running])
         self._port = Gtk.Label(self.element.port)
-        self._port_open = Gtk.Label(self.element.port_open)
-        self._latency = Gtk.Label(self.element.latency)
+        self._port_open = Gtk.Label(
+            self._port_open_values[self.element.port_open])
+        self._latency = Gtk.Label(str(self.element.latency))
+        self._unavailable_duration = Gtk.Label(
+            self._get_unavailability_duration())
+
+        self._host_box = None
+        self._port_box = None
+        self._latency_box = None
+        self._unavailable_duration_box = None
 
         self.info_popover = self._build_info_popover()
 
     def _build_info_popover(self):
-        host_box = self._build_subbox(self._hostname, self._host_running)
-        port_box = self._build_subbox(self._port, self._port_open)
-        latency_box = self._build_subbox(Gtk.Label("Latency"), self._latency)
+        self._host_box = self._build_subbox(self._hostname, self._host_running)
+        self._port_box = self._build_subbox(self._port, self._port_open)
+        self._latency_box = self._build_subbox(Gtk.Label("Latency (ms)"),
+                                               self._latency)
+        self._unavailable_duration_box = self._build_subbox(
+            Gtk.Label("Unavailable since (s)"), self._unavailable_duration)
+        # Hide the box until the element becomes unavailable
+        self._unavailable_duration_box.set_no_show_all(True)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        for widget in (host_box, port_box, latency_box):
+        for widget in (self._host_box, self._port_box, self._latency_box,
+                       self._unavailable_duration_box):
             vbox.pack_start(widget, False, False, 6)
 
         popover = Gtk.Popover()
@@ -191,6 +269,33 @@ class WatchedRemote(WatchedElement):
         popover.set_position(Gtk.PositionType.TOP)
 
         return popover
+
+    def _get_unavailability_duration(self):
+        try:
+            duration = time.time() - self.element.unavailable_since
+            return str(round(duration, 1))
+        except TypeError:
+            return "N/A"
+
+    def update_content(self):
+        if self.element.available:
+            self.button.set_icon_widget(self._green_square)
+            self._unavailable_duration_box.set_no_show_all(True)
+            self._unavailable_duration_box.hide()
+        else:
+            self.button.set_icon_widget(self._red_square)
+            self._unavailable_duration_box.set_no_show_all(False)
+            self._unavailable_duration_box.show()
+            self._unavailable_duration.set_text(
+                self._get_unavailability_duration())
+
+        self.button.show_all()
+
+        self._host_running.set_text(
+            self._host_running_values[self.element.host_running])
+        self._port_open.set_text(
+            self._port_open_values[self.element.port_open])
+        self._latency.set_text(str(self.element.latency))
 
 
 _status_bar = StatusBar()
