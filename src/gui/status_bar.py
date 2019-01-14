@@ -25,6 +25,7 @@ import time
 from gi.repository import Gtk
 
 from gui import images
+from gui import utils
 
 
 # Duration in seconds between two status update wave
@@ -171,18 +172,6 @@ class WatchedElement:
         self.info_popover.set_relative_to(widget)
         self.info_popover.show_all()
 
-    def _build_subbox(self, label, value):
-        """
-        Build an horizontal box meant to be packed in a packed in a popover
-
-        :param label: :class:`Gtk.Widget` to display at the left of the box
-        :param value: :class:`Gtk.Widget` to display at the right of the box
-        """
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        box.pack_start(label, False, False, 6)
-        box.pack_end(value, False, False, 6)
-        return box
-
     @abc.abstractmethod
     def _build_info_popover(self):
         """
@@ -250,12 +239,15 @@ class WatchedRemote(WatchedElement):
         self.info_popover = self._build_info_popover()
 
     def _build_info_popover(self):
-        self._host_box = self._build_subbox(self._hostname, self._host_running)
-        self._port_box = self._build_subbox(self._port, self._port_open)
-        self._latency_box = self._build_subbox(Gtk.Label("Latency (ms)"),
-                                               self._latency)
-        self._unavailable_duration_box = self._build_subbox(
-            Gtk.Label("Unavailable since (s)"), self._unavailable_duration)
+        self._host_box = utils.build_multi_widgets_hbox(
+            [self._hostname, ], [self._host_running, ], padding=6)
+        self._port_box = utils.build_multi_widgets_hbox(
+            [self._port, ], [self._port_open, ], padding=6)
+        self._latency_box = utils.build_multi_widgets_hbox(
+            [Gtk.Label("Latency (ms)"), ], [self._latency, ], padding=6)
+        self._unavailable_duration_box = utils.build_multi_widgets_hbox(
+            [Gtk.Label("Unavailable since (s)"), ],
+            [self._unavailable_duration, ], padding=6)
         # Hide the box until the element becomes unavailable
         self._unavailable_duration_box.set_no_show_all(True)
 

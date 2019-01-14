@@ -42,6 +42,26 @@ def pack_widgets(box, *widgets):
         box.pack_start(widget, False, False, 0)
 
 
+def build_multi_widgets_hbox(right_widgets, left_widgets, padding=0):
+    """
+    Build a formatted horizontal box. All the ``right_widgets`` will be packed
+    at the start of the box. All the ``left_widgets`` will be packed at the
+    end of the box.
+
+    :param label: iterable of :class:`Gtk.Widget`
+    :param value: iterable of :class:`Gtk.Widget`
+    :param padding: padding to add to a widget on packing
+
+    :return: :class:`Gtk.Box`
+    """
+    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+    for right_widget in right_widgets:
+        box.pack_start(right_widget, False, False, padding)
+    for left_widget in left_widgets:
+        box.pack_end(left_widget, False, False, padding)
+    return box
+
+
 def build_confirm_dialog(message_type, primary_text, secondary_text=None,
                          on_signal=None, callback=None):
     """
