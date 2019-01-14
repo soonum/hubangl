@@ -188,26 +188,45 @@ class RemoteElement:
 
     @property
     def available(self):
+        """
+        :return: ``True`` if the element is available, ``False`` otherwise
+        """
         return self._available
 
     @property
     def unavailable_since(self):
+        """
+        :return: date when unavailability began in seconds since EPOCH
+        """
         return self._unavailable_since
 
     @property
     def unknown_state(self):
+        """
+        :return: ``True`` if the element state is unknown, ``False`` otherwise
+        """
         return self._unknown_state
 
     @property
     def host_running(self):
+        """
+        :return: ``True`` if the element host is up and running, ``False``
+            otherwise
+        """
         return self._host_running
 
     @property
     def port_open(self):
+        """
+        :return: ``True`` if the element port is open, ``False`` otherwise
+        """
         return self._port_open
 
     @property
     def latency(self):
+        """
+        :return: latency from last ping in milliseconds
+        """
         return round(self._latency, 3)
 
     def ping(self):
