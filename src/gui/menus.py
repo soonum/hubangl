@@ -45,6 +45,28 @@ class AbstractMenu:
         self.placeholder_pipeline = placeholder_pipeline
         self.menu_revealer = menu_revealer
 
+    def _build_header(self, title):
+        """
+        Build header section containing the ``title`` of the menu as well as a
+        close button which collapses the revealer.
+
+        :param title: title of the menu
+
+        :return: :class:`Gtk.Box`
+        """
+        title = Gtk.Label(title)
+
+        close_button = Gtk.Button()
+        image = Gtk.Image.new_from_icon_name("window-close-symbolic",
+                                             Gtk.IconSize.MENU)
+        close_button.set_image(image)
+        close_button.set_relief(Gtk.ReliefStyle.NONE)
+        close_button.connect("clicked", self.on_close_clicked)
+
+        box = utils.build_multi_widgets_hbox([title, ], [close_button, ])
+        box.set_margin_top(6)
+        return box
+
     def _build_revealer(self,
                         transition=Gtk.RevealerTransitionType.SLIDE_DOWN):
         """
@@ -379,6 +401,9 @@ class AbstractMenu:
             if feed.sink:
                 return True
 
+    def on_close_clicked(self, widget):
+        self._manage_revealer(self.menu_revealer, self.scrolled_window)
+
     def on_format_radiobutton_toggle(self, widget):
         raise NotImplementedError
 
@@ -408,8 +433,7 @@ class VideoMenu(AbstractMenu):
     def _build_video_vbox(self):
         """
         """
-        title = Gtk.Label("Video Source")
-        title.set_margin_top(6)
+        header = self._build_header("Video Source")
 
         self.usb_radiobutton = Gtk.RadioButton("USB")
         self.usb_radiobutton.set_active(True)
@@ -446,7 +470,7 @@ class VideoMenu(AbstractMenu):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
-                           title,
+                           header,
                            self.usb_radiobutton,
                            self.usb_sources,
                            self.ip_radiobutton,
@@ -546,8 +570,7 @@ class AudioMenu(AbstractMenu):
     def _build_audio_vbox(self):
         """
         """
-        title = Gtk.Label("Audio Source")
-        title.set_margin_top(6)
+        header = self._build_header("Audio Source")
 
         self.mic_sources = Gtk.ComboBoxText()
         for source in self.pipeline.audio_sources:
@@ -579,7 +602,7 @@ class AudioMenu(AbstractMenu):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
-                           title,
+                           header,
                            self.mic_sources,
                            self.mute_checkbutton,
                            self.output_sinks,
@@ -677,8 +700,7 @@ class StreamMenu(AbstractMenu):
         self.feeds = []
 
     def _build_stream_vbox(self):
-        title = Gtk.Label("Streaming server")
-        title.set_margin_top(6)
+        header = self._build_header("Streaming Servers")
 
         self.stream_add_button = self._build_add_button(
             callback=self.on_add_clicked)
@@ -689,7 +711,7 @@ class StreamMenu(AbstractMenu):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
-                           title,
+                           header,
                            self.settings_revealer,
                            separator,
                            self.stream_add_button)
@@ -936,8 +958,7 @@ class StoreMenu(AbstractMenu):
         self.feeds = []
 
     def _build_store_vbox(self):
-        title = Gtk.Label("Storing")
-        title.set_margin_top(6)
+        header = self._build_header("Storing")
 
         self.store_add_button = self._build_add_button(
             callback=self.on_add_clicked)
@@ -948,7 +969,7 @@ class StoreMenu(AbstractMenu):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
-                           title,
+                           header,
                            self.settings_revealer,
                            separator,
                            self.store_add_button)
@@ -1188,8 +1209,7 @@ class SettingsMenu(AbstractMenu):
         self.settings_vbox = self._build_settings_vbox()
 
     def _build_settings_vbox(self):
-        title = Gtk.Label("Settings")
-        title.set_margin_bottom(6)
+        header = self._build_header("Settings")
 
         self.text_overlay_entry = Gtk.Entry()
         self.text_overlay_entry.set_placeholder_text(
@@ -1235,7 +1255,7 @@ class SettingsMenu(AbstractMenu):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_right(6)
         utils.pack_widgets(vbox,
-                           title,
+                           header,
                            self.text_overlay_entry,
                            self.text_position_combobox,
                            self.hide_text_checkbutton,
