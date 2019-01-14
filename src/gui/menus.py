@@ -294,15 +294,11 @@ class AbstractMenu:
 
         :return: :class:`Gtk.Box`
         """
-        self.full_filename_label = Gtk.Label(filename)
         settings_button = Gtk.Button(stock=Gtk.STOCK_PROPERTIES)
         settings_button.connect("clicked", self.on_settings_clicked)
-
-        summary_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        summary_hbox = utils.build_multi_widgets_hbox(
+            [Gtk.Label(filename), ], [settings_button, ])
         summary_hbox.set_margin_top(6)
-        utils.pack_widgets(summary_hbox,
-                           self.full_filename_label,
-                           settings_button)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         separator.set_margin_top(6)
@@ -769,29 +765,21 @@ class StreamMenu(AbstractMenu):
         def _build_newstream_vbox(self):
             """
             """
-            address_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            address_label = Gtk.Label("Address :    ")
             self.address_entries = self._build_address_entries()
-            utils.pack_widgets(address_hbox,
-                               address_label,
-                               self.address_entries)
+            address_hbox = utils.build_multi_widgets_hbox(
+                [Gtk.Label("Address :"), ], [self.address_entries, ])
 
-            mountpoint_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            mountpoint_label = Gtk.Label("Mountpoint : ")
             self.mountpoint_entry = Gtk.Entry()
             self.mountpoint_entry.connect("changed", self.on_mountpoint_change)
-            utils.pack_widgets(
-                mountpoint_hbox, mountpoint_label, self.mountpoint_entry)
+            mountpoint_hbox = utils.build_multi_widgets_hbox(
+                [Gtk.Label("Mountpoint :"), ], [self.mountpoint_entry, ])
 
-            password_hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
-            password_label = Gtk.Label("Password :   ")
             self.password_entry = Gtk.Entry()
             self.password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
             self.password_entry.set_visibility(False)
             self.password_entry.connect("changed", self.on_password_change)
-            utils.pack_widgets(password_hbox,
-                               password_label,
-                               self.password_entry)
+            password_hbox = utils.build_multi_widgets_hbox(
+                [Gtk.Label("Password :"), ], [self.password_entry, ])
 
             radiobutton_hbox = self._build_format_group()
             # FIXME: .mkv format is not supported by shout2send Gst element.
@@ -1028,14 +1016,13 @@ class StoreMenu(AbstractMenu):
                                                self.on_folder_selected)
             self.folder_chooser_button.set_margin_top(6)
 
-            name_label = Gtk.Label("Name ")
             self.name_entry = Gtk.Entry()
             self.name_entry.set_width_chars(25)
             self.name_entry.set_input_purpose(Gtk.InputPurpose.ALPHA)
             self.name_entry.set_placeholder_text("Type a filename")
             self.name_entry.connect("changed", self.on_entry_change)
-            name_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            utils.pack_widgets(name_hbox, name_label, self.name_entry)
+            name_hbox = utils.build_multi_widgets_hbox(
+                [Gtk.Label("Name :"), ], [self.name_entry, ])
 
             self.automatic_naming_checkbutton = Gtk.CheckButton()
             self.automatic_naming_checkbutton.set_active(True)
