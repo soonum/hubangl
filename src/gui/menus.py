@@ -47,15 +47,13 @@ class AbstractMenu:
 
     def _build_header(self, title):
         """
-        Build header section containing the ``title`` of the menu as well as a
+        Build a header bar containing the ``title`` of the menu as well as a
         close button which collapses the revealer.
 
         :param title: title of the menu
 
-        :return: :class:`Gtk.Box`
+        :return: :class:`Gtk.HeaderBar`
         """
-        title = Gtk.Label(title)
-
         close_button = Gtk.Button()
         image = Gtk.Image.new_from_icon_name("window-close-symbolic",
                                              Gtk.IconSize.MENU)
@@ -63,9 +61,10 @@ class AbstractMenu:
         close_button.set_relief(Gtk.ReliefStyle.NONE)
         close_button.connect("clicked", self.on_close_clicked)
 
-        box = utils.build_multi_widgets_hbox([title, ], [close_button, ])
-        box.set_margin_top(6)
-        return box
+        header_bar = Gtk.HeaderBar()
+        header_bar.set_title(title)
+        header_bar.pack_end(close_button)
+        return header_bar
 
     def _build_revealer(self,
                         transition=Gtk.RevealerTransitionType.SLIDE_DOWN):
