@@ -66,6 +66,30 @@ class AbstractMenu:
         header_bar.pack_end(close_button)
         return header_bar
 
+    def _build_subsection(self, *widgets):
+        """
+        Build a menu subsection visually indented. It is made of a vertical
+        :class:`Gtk.Box` coontaining all the widgets used in the subsection.
+        This box is packed in a horizontal :class:`Gtk.Box` along with a
+        separator.
+
+        :param widgets: :class:`Gtk.Widget`
+
+        :return: horizontal :class:`Gtk.Box` and vertical :class:`Gtk.Box`
+        """
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        utils.pack_widgets(vbox, *widgets)
+
+        separator = Gtk.VSeparator()
+        separator.set_margin_start(12)
+        separator.set_margin_end(6)
+
+        hbox = Gtk.Box()
+        hbox.set_margin_top(6)
+        utils.pack_widgets(hbox, separator, vbox)
+
+        return hbox, vbox
+
     def _build_revealer(self,
                         transition=Gtk.RevealerTransitionType.SLIDE_DOWN):
         """
@@ -711,7 +735,7 @@ class StreamMenu(AbstractMenu):
             self.pipeline, self.settings_revealer,
             self.main_vbox, len(self.feeds) + 1)
         self.feeds.append(stream_element)
-        self._manage_revealer(self.settings_revealer, stream_element.vbox)
+        self._manage_revealer(self.settings_revealer, stream_element.hbox)
 
     class StreamSection(AbstractMenu):
         def __init__(self, pipeline, settings_revealer, parent_container,
@@ -746,7 +770,7 @@ class StreamMenu(AbstractMenu):
 
             self.store_confirm_button = None
 
-            self.vbox = self._build_newstream_vbox()
+            self.hbox, self.vbox = self._build_newstream_vbox()
             self.summary_vbox = None
 
             self.sink = None
@@ -781,17 +805,13 @@ class StreamMenu(AbstractMenu):
             # Label only used at initialization
             self.stream_confirm_button.set_label("Create")
 
-            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            vbox.set_margin_top(6)
-            vbox.set_margin_end(6)
-            utils.pack_widgets(vbox,
-                               address_hbox,
-                               mountpoint_hbox,
-                               password_hbox,
-                               radiobutton_hbox,
-                               self._audiovideo_format_hbox,
-                               self.stream_confirm_button,)
-            return vbox
+            hbox, vbox = self._build_subsection(address_hbox,
+                                                mountpoint_hbox,
+                                                password_hbox,
+                                                radiobutton_hbox,
+                                                self._audiovideo_format_hbox,
+                                                self.stream_confirm_button)
+            return hbox, vbox
 
         def build_full_mountpoint(self):
             """
@@ -915,14 +935,14 @@ class StreamMenu(AbstractMenu):
                 self._parent_container.reorder_child(
                     self.summary_vbox, self._index)
 
-                self._settings_revealer.remove(self.vbox)
+                self._settings_revealer.remove(self.hbox)
                 self._parent_container.show_all()
 
             self.stream_confirm_button.set_label("Confirm")
             self.stream_confirm_button.set_sensitive(False)
 
         def on_settings_clicked(self, widget):
-            return self._manage_revealer(self._revealer, self.vbox)
+            return self._manage_revealer(self._revealer, self.hbox)
 
 
 class StoreMenu(AbstractMenu):
@@ -958,7 +978,7 @@ class StoreMenu(AbstractMenu):
             self.pipeline, self.settings_revealer,
             self.main_vbox, len(self.feeds) + 1)
         self.feeds.append(store_element)
-        self._manage_revealer(self.settings_revealer, store_element.vbox)
+        self._manage_revealer(self.settings_revealer, store_element.hbox)
 
     class StoreSection(AbstractMenu):
         def __init__(self, pipeline, settings_revealer, parent_container,
@@ -987,7 +1007,7 @@ class StoreMenu(AbstractMenu):
             self._audio_format_hbox = None
             self.store_confirm_button = None
 
-            self.vbox = self._build_newfile_vbox()
+            self.hbox, self.vbox = self._build_newfile_vbox()
             self.summary_vbox = None
 
             self.sink = None
@@ -1027,17 +1047,13 @@ class StoreMenu(AbstractMenu):
             # Label only used at initialization
             self.store_confirm_button.set_label("Create")
 
-            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            vbox.set_margin_top(6)
-            vbox.set_margin_end(6)
-            utils.pack_widgets(vbox,
-                               self.folder_chooser_button,
-                               name_hbox,
-                               automatic_naming_hbox,
-                               radiobutton_hbox,
-                               self._audiovideo_format_hbox,
-                               self.store_confirm_button)
-            return vbox
+            hbox, vbox = self._build_subsection(self.folder_chooser_button,
+                                                name_hbox,
+                                                automatic_naming_hbox,
+                                                radiobutton_hbox,
+                                                self._audiovideo_format_hbox,
+                                                self.store_confirm_button)
+            return hbox, vbox
 
         def _get_formatted_timestamp(self):
             """
@@ -1153,14 +1169,14 @@ class StoreMenu(AbstractMenu):
                 self._parent_container.reorder_child(
                     self.summary_vbox, self._index)
 
-                self._settings_revealer.remove(self.vbox)
+                self._settings_revealer.remove(self.hbox)
                 self._parent_container.show_all()
 
             self.store_confirm_button.set_label("Confirm")
             self.store_confirm_button.set_sensitive(False)
 
         def on_settings_clicked(self, widget):
-            return self._manage_revealer(self._revealer, self.vbox)
+            return self._manage_revealer(self._revealer, self.hbox)
 
 
 class SettingsMenu(AbstractMenu):
