@@ -283,11 +283,7 @@ class ControlBar:
     def _build_toolbutton(self, name, icon,
                           on_signal=None, callback=None, tooltip_text=None):
         toolbutton = Gtk.ToolButton(name)
-        # FIXME: Tooltip text does not appear on the screen
-        if not tooltip_text:
-            toolbutton.set_tooltip_text(name)
-        else:
-            toolbutton.set_tooltip_text(tooltip_text)
+        toolbutton.set_tooltip_text(tooltip_text or name)
         toolbutton.set_icon_widget(icon)
 
         if on_signal and callback:
