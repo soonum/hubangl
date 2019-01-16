@@ -21,7 +21,10 @@
 
 import argparse
 import json
+import logging
+import logging.handlers
 import pathlib
+import sys
 
 import gi
 gi.require_version("Gst", "1.0")  # NOQA
@@ -33,7 +36,44 @@ import core.watch
 import gui.main_window
 
 
+LOG_FORMAT = "hubangl: %(asctime)s [%(levelname)s] %(message)s"
+DEFAULT_LOG_PATH = "/var/log/hubangl"
+
 VERSION = "0.1.0"  # TODO: Fecth version from version.py
+
+logger = None
+
+
+def setup_logger(options):
+    """
+    Initialize logging facility
+
+    :param options: options from command-line
+    """
+    global logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG if options.debug else logging.INFO)
+
+    directory = pathlib.Path(options.log_output)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        # Don't log into file if user doesn't have the right permissions
+        pass
+    else:
+        filename = str(directory.joinpath("hubangl.log"))
+        # Rotate log files on a daily basis.
+        log_rotate = logging.handlers.TimedRotatingFileHandler(filename, when="D")
+        _add_log_handler(logger, log_rotate)
+
+    if not options.quiet:
+        stdout = logging.StreamHandler(sys.stdout)
+        _add_log_handler(logger, stdout)
+
+
+def _add_log_handler(logger, handler, formatt=LOG_FORMAT):
+    handler.setFormatter(logging.Formatter(formatt))
+    logger.addHandler(handler)
 
 
 def _huba_file(filename):
@@ -83,9 +123,16 @@ def create_input_args():
 
     parser = argparse.ArgumentParser(description)
 
+    parser.add_argument("-d", "--debug", action="store_true",
+                        help="Launch in debug mode")
     parser.add_argument("-l", "--load",
                         type=_huba_file,
                         help=help_load_session)
+    parser.add_argument("-o", "--log-output", dest="log_output",
+                        default="/var/log/hubangl",
+                        help="Path to directory to store logs")
+    parser.add_argument("-q", "--quiet", action="store_true",
+                        help="Do not print log on stdout")
     #parser.add_argument("-m", "--mode", default=0,  # DEV
     #                    help=help_mode)  # DEV
     parser.add_argument("-v", "--version", action="version", version=version)
@@ -99,11 +146,13 @@ def get_args(parser):
     :param parser: :class:`argparse.ArgumentParser`
     """
     return parser.parse_args()
-    print("Args =", args.load)
 
 
 if __name__ == "__main__":
     args = get_args(create_input_args())
+
+    setup_logger(args)
+    logger.info("Starting up hubangl")
 
     core.watch.setup()
 
@@ -111,4 +160,8 @@ if __name__ == "__main__":
     gui.main_window.MainWindow(args)
     Gtk.main()
 
+    logger.info("Shutting down hubangl "
+                "(this could take up to {} seconds)".format(
+                    core.watch.REMOTE_CHECK_FREQUENCY))
     core.watch.shutdown()
+    logging.shutdown()
