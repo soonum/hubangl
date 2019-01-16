@@ -317,10 +317,11 @@ class AbstractMenu:
 
         :return: :class:`Gtk.Box`
         """
+        self.full_filename_label = Gtk.Label(filename)
         settings_button = Gtk.Button(stock=Gtk.STOCK_PROPERTIES)
         settings_button.connect("clicked", self.on_settings_clicked)
         summary_hbox = utils.build_multi_widgets_hbox(
-            [Gtk.Label(filename), ], [settings_button, ])
+            [self.full_filename_label, ], [settings_button, ])
         summary_hbox.set_margin_top(6)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
