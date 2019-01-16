@@ -39,7 +39,7 @@ import gui.main_window
 LOG_FORMAT = "hubangl: %(asctime)s [%(levelname)s] %(message)s"
 DEFAULT_LOG_PATH = "/var/log/hubangl"
 
-VERSION = "0.1.0"  # TODO: Fecth version from version.py
+VERSION = "0.2.0"  # TODO: Fecth version from version.py
 
 logger = None
 
@@ -90,21 +90,19 @@ def _huba_file(filename):
         with filepath.open() as f:
             session = json.load(f)
             # Checking if session file contains at least the minimal keys set:
-            video = session["video"]
-            audio = session["audio"]
-            settings = session["settings"]
+            for field in ("video", "audio", "settings"):
+                session[field]
     except FileNotFoundError:
         message = "File provided was not found."
-        raise argparse.ArgumentTypeError(message)
     except KeyError:
         message = "File provided is not formatted correctly."
-        raise argparse.ArgumentTypeError(message)
     except ValueError:
         # An error occured during decoding JSON file.
         message = "File provided could not be decoded."
-        raise argparse.ArgumentTypeError(message)
     else:
-        return filepath.resolve().as_posix()
+        return str(filepath.resolve())
+
+    raise argparse.ArgumentTypeError(message)
 
 
 def create_input_args():
@@ -117,39 +115,24 @@ def create_input_args():
         HUBAngl Uses Broadcaster Angle\n
         HUBAngl broadcast audio and video feeds.
     """
-    help_load_session = "load session file at startup"
-    help_mode = "select view mode at startup"
-    version = "HUBAngl v" + VERSION
-
     parser = argparse.ArgumentParser(description)
 
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Launch in debug mode")
-    parser.add_argument("-l", "--load",
-                        type=_huba_file,
-                        help=help_load_session)
+    parser.add_argument("-l", "--load", type=_huba_file,
+                        help="load session file at startup")
     parser.add_argument("-o", "--log-output", dest="log_output",
                         default="/var/log/hubangl",
-                        help="Path to directory to store logs")
+                        help="path to directory to store logs")
     parser.add_argument("-q", "--quiet", action="store_true",
-                        help="Do not print log on stdout")
-    #parser.add_argument("-m", "--mode", default=0,  # DEV
-    #                    help=help_mode)  # DEV
-    parser.add_argument("-v", "--version", action="version", version=version)
+                        help="do not print log on stdout")
+    parser.add_argument("-v", "--version", action="version",
+                        version=("HUBAngl v" + VERSION))
     return parser
 
 
-def get_args(parser):
-    """
-    Retrieve input arguments.
-
-    :param parser: :class:`argparse.ArgumentParser`
-    """
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    args = get_args(create_input_args())
+    args = create_input_args().parse_args()
 
     setup_logger(args)
     logger.info("Starting up hubangl")
