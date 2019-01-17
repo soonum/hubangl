@@ -19,6 +19,7 @@
 # Copyright (c) 2016-2018 David Testé
 
 import json
+import logging
 import pathlib
 
 from gi.repository import Gtk
@@ -28,6 +29,9 @@ from gui import feed
 from gui import images
 from gui import status_bar
 from gui import utils
+
+
+logger = logging.getLogger("gui.main_window")
 
 
 class MainWindow:
@@ -366,6 +370,8 @@ class MainWindow:
             with open(file_saved, "w") as f:
                 json.dump(self.session_properties, f, indent="\t")
 
+            logger.info("Session configuration saved to %s" % file_saved)
+
         dialog.destroy()
 
     def load_session(self, filepath):
@@ -386,6 +392,8 @@ class MainWindow:
                 message = "An error occurred during file loading."
                 utils.build_error_dialog(message)
                 raise
+            else:
+                logger.info("Session configuration loaded from %s" % filepath)
 
     def _need_load_confirmation(self):
         """

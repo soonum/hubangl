@@ -18,6 +18,8 @@
 #
 # Copyright (c) 2016-2018 David Testé
 
+import logging
+
 import gi
 gi.require_version("GstVideo", "1.0")  # NOQA
 from gi.repository import Gst
@@ -31,6 +33,12 @@ from core import process
 from gui import audio_displays
 from gui import menus
 from gui import utils
+
+
+_FEED_STATE_CHANGED = "Changed feed state to {state}"
+_AUDIO_STATE_CHANGED = "Changed audio output state to {state}"
+
+logger = logging.getLogger("gui.feed")
 
 
 class Feed:
@@ -219,9 +227,8 @@ class Feed:
     def on_message(self, bus, message):
         # Getting the RMS audio level value:
         message_structure = Gst.Message.get_structure(message)
-        message_type = message.type
 
-        if message_type == Gst.MessageType.ELEMENT:
+        if message.type == Gst.MessageType.ELEMENT:
             if str(Gst.Structure.get_name(message_structure)) == "level":
                 if not self.audio_level_box.get_visible():
                     self.audio_level_box.set_no_show_all(False)
@@ -231,20 +238,15 @@ class Feed:
                 peak = message_structure.get_value("peak")
                 decay = message_structure.get_value("decay")
                 self.audio_level_display.on_level(rms, peak, decay)
-        elif message_type == Gst.MessageType.EOS:
+        elif message.type == Gst.MessageType.EOS:
             self.pipeline.set_null_state()
-        elif message_type == Gst.MessageType.ERROR:
+        elif message.type == Gst.MessageType.ERROR:
             if self.pipeline.is_from_streaming(message):
                 self.pipeline.reconnect_streaming_branch(message)
             else:
                 err, debug = message.parse_error()
-                print('%s' % err, debug)  # DEBUG
-                # Watching for feed loss during streaming:
-                # if '(651)' not in debug:
-                #    # The error is not a socket error.
-                #    self.pipel.stream_stop()
-                #    self.build_filename(streamfailed=True)
-                #    self.create_backup_pipeline()
+                logger.error("Unexpected GStreamer error {} {}".format(
+                    err, debug))
 
 
 class ControlBar:
@@ -367,6 +369,8 @@ class ControlBar:
         self._pipeline.set_play_state()
         self.play_button.set_sensitive(False)
 
+        logger.info(_FEED_STATE_CHANGED.format(state="PLAY"))
+
     # TODO: Warn user about the need to press STOP button if any changes are
     # requested in any feed ouput. Maybe warn the user via a notification
     # window or a pop-up window.
@@ -401,11 +405,17 @@ class ControlBar:
             feed_recorded.full_filename_label.set_label(
                 feed_recorded.full_filename)
 
+        logger.info(_FEED_STATE_CHANGED.format(state="STOP"))
+
     def on_mute_clicked(self, widget):
         if self._pipeline.speaker_volume.get_property("mute"):
             self._pipeline.speaker_volume.set_property("mute", False)
             widget.set_icon_widget(self.images.icons["speaker"]["regular"])
+            state = "UNMUTED"
         else:
             self._pipeline.speaker_volume.set_property("mute", True)
             widget.set_icon_widget(self.images.icons["speaker"]["striked"])
+            state = "MUTED"
         widget.show_all()
+
+        logger.debug(_AUDIO_STATE_CHANGED.format(state=state))
