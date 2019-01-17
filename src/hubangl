@@ -20,6 +20,7 @@
 # Copyright (c) 2016-2018 David Testé
 
 import argparse
+import datetime
 import json
 import logging
 import logging.handlers
@@ -38,6 +39,7 @@ import gui.main_window
 
 LOG_FORMAT = "hubangl: %(asctime)s [%(levelname)s] %(message)s"
 DEFAULT_LOG_PATH = "/var/log/hubangl"
+DEFAULT_LOG_FILE = "hubangl-%Y-%m-%d.log"
 
 VERSION = "0.2.0"  # TODO: Fecth version from version.py
 
@@ -54,17 +56,14 @@ def setup_logger(options):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG if options.debug else logging.INFO)
 
-    directory = pathlib.Path(options.log_output)
     try:
-        directory.mkdir(parents=True, exist_ok=True)
+        fd = _get_file_handle(options.log_output, DEFAULT_LOG_FILE)
     except PermissionError:
         # Don't log into file if user doesn't have the right permissions
         pass
     else:
-        filename = str(directory.joinpath("hubangl.log"))
-        # Rotate log files on a daily basis.
-        log_rotate = logging.handlers.TimedRotatingFileHandler(filename, when="D")
-        _add_log_handler(logger, log_rotate)
+        log_handler = logging.StreamHandler(fd)
+        _add_log_handler(logger, log_handler)
 
     if not options.quiet:
         stdout = logging.StreamHandler(sys.stdout)
@@ -74,6 +73,25 @@ def setup_logger(options):
 def _add_log_handler(logger, handler, formatt=LOG_FORMAT):
     handler.setFormatter(logging.Formatter(formatt))
     logger.addHandler(handler)
+
+
+def _get_file_handle(path, filename_pattern):
+    """
+    Return a handle for a log file, taking care of log rotation.
+
+    The path of the returned fd is an interpolation of ``filename_pattern``
+    with :meth:`~datetime.datetime.strftime()`.
+
+    :param path: path to directory to put log file
+    :param filename_pattern: filename to open
+
+    :return: file descriptor
+    """
+    path = pathlib.Path(path)
+    path.mkdir(parents=True, exist_ok=True)
+    filename = datetime.datetime.now().strftime(filename_pattern)
+
+    return path.joinpath(filename).open(mode="a")
 
 
 def _huba_file(filename):
