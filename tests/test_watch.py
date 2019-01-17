@@ -18,10 +18,13 @@
 #
 # Copyright (c) 2016-2019 David Testé
 
+import logging
 import unittest
 import unittest.mock
 
 from core import watch
+
+logging.disable(logging.CRITICAL)
 
 
 class TestRemoteWatcher(unittest.TestCase):

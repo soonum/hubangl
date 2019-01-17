@@ -20,6 +20,7 @@
 
 import collections
 import concurrent.futures
+import logging
 import socket
 import subprocess
 import time
@@ -29,6 +30,8 @@ import time
 REMOTE_CHECK_FREQUENCY = 5
 # Duration after which we stop waiting for a reply from the server
 REMOTE_PING_TIMEOUT = .5
+
+logger = logging.getLogger("core.watch")
 
 Watchers = collections.namedtuple("Watchers", ["remote", "local"])
 _watchers = ()
@@ -44,6 +47,8 @@ def setup():
     for watcher in _watchers:
         watcher.start()
 
+    logger.debug("Watchers started")
+
 
 def shutdown():
     global _executor
@@ -51,6 +56,7 @@ def shutdown():
         watcher.stop()
 
     _executor.shutdown()
+    logger.debug("Watchers shutdown")
 
 
 def get_remote_watcher():
@@ -125,6 +131,8 @@ class RemoteWatcher:
         except KeyError:
             element = self._elements[address] = RemoteElement(address)
 
+        logger.debug("Watcher to remote element added ({}:{})".format(
+            *address))
         return element
 
     def remove_watcher(self, address):
@@ -138,6 +146,8 @@ class RemoteWatcher:
         try:
             element = self._elements[address]
             del self._elements[address]
+            logger.debug("Watcher to remote element removed ({}:{})".format(
+                *address))
             return element
         except KeyError:
             pass
@@ -240,7 +250,9 @@ class RemoteElement:
                                   stderr=subprocess.PIPE)
         except subprocess.TimeoutExpired:
             # TODO: Add logging like ->
-            # logger.info("Server at {address:port} took more than {timeout} seconds to reply to ping")
+            logger.debug("Server at {}:{} took more than {} seconds to reply"
+                         " to ping".format(self._host, self._port,
+                                           REMOTE_PING_TIMEOUT))
             self._set_state(None, None, -1)
         else:
             result = self._parse_ping_result(proc.stdout, proc.stderr)
@@ -256,8 +268,8 @@ class RemoteElement:
         :return: three elements :class:`tuple`
         """
         if stderr:
-            # TODO: Add logging like ->
-            # logger.info("Unexepected error during ping %s" % stderr.decode())
+            logger.warning("Unexpected error during ping (stderr: {})".format(
+                stderr))
             return None, None, -1
 
         host_running = False
@@ -289,11 +301,18 @@ class RemoteElement:
 
         if self._host_running and self._port_open:
             self._available = True
+            if self._unavailable_since:
+                duration = round((time.time() - self._unavailable_since), 1)
+                logger.info("Server at {}:{} is available (unavailability"
+                            " duration: {}s)".format(self._host, self._port,
+                                                     duration))
             self._unavailable_since = None
         else:
             self._available = False
             if not self._unavailable_since:
                 self._unavailable_since = time.time()
+                logger.warning("Server at {}:{} is not available".format(
+                    self._host, self._port))
 
     def get_state(self):
         """
