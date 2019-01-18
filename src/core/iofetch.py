@@ -1,4 +1,3 @@
-#!/usr/bin/env python34
 # -*- coding: utf-8 -*-
 
 # This file is part of HUBAngl.
@@ -25,6 +24,7 @@
 # - Add input checker (for scanning network in console mode)
 #######################################################################
 
+import logging
 from os import listdir
 from os import system
 from os import path
@@ -46,6 +46,8 @@ GSTINIT = None
 TYPE = 'type'
 TYPE_IN = 'input'
 TYPE_OUT = 'output'
+
+logger = logging.getLogger("core.iofetch")
 
 
 def find_audio():
@@ -108,10 +110,17 @@ def parse_pactl_list(filepath, output_dict,):
                                         TYPE: TYPE_OUT,
                                         GSTELEM: GSTINIT}}
                 output_dict.update(entry)
+                logger.debug("Audio {} found: '{}'".format(
+                    entry[dev_name][TYPE], dev_name))
+
                 dev_name = ''
                 dev_descrip = ''
                 is_input = False
                 is_output = False
+
+    if not output_dict:
+        logger.info("No audio input/ouput are available")
+
     return output_dict
 
 
@@ -137,7 +146,7 @@ def find_usbcam():
                     if CLASS_VIDEO in dev]
         dev_infopath = [VIDEO_DEVICE_PATH + dev for dev in listdir(VIDEO_DEVICE_PATH)]
     except FileNotFoundError:
-        # No camera is available or plugged
+        logger.info("No USB camera is available")
         return None
     else:
         for dev in dev_infopath:
@@ -152,6 +161,8 @@ def find_usbcam():
                                           COMM: COMM_USB,
                                           TYPE: TYPE_IN,
                                           GSTELEM: GSTINIT}})
+                    logger.debug("USB camera found: '{}'".format(dev_name))
+
         return video_dev
 
 
@@ -332,4 +343,4 @@ def scan_tester():
 if __name__ == '__main__':
     find_audio()
     #scan_tester()
-    
+
