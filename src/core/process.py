@@ -19,6 +19,7 @@
 #
 # Copyright (c) 2016-2018 David Testé
 
+import logging
 import pathlib
 
 from gi.repository import Gst
@@ -50,6 +51,8 @@ AUDIO_ONLY_STREAM = "audio"
 
 # Time to wait in seconds before trying to reconnect to an Icecast server.
 RECONNECT_INTERVAL = 5
+
+logger = logging.getLogger("core.process")
 
 
 class PlaceholderPipeline:
@@ -118,6 +121,7 @@ class PlaceholderPipeline:
         """
         self.pipeline.set_state(Gst.State.PLAYING)
         self.is_playing = True
+        logger.debug("[placeholder pipeline] Switched to PLAY state")
 
     def set_stop_state(self):
         """
@@ -125,6 +129,7 @@ class PlaceholderPipeline:
         """
         self.pipeline.set_state(Gst.State.NULL)
         self.is_playing = False
+        logger.debug("[placeholder pipeline] Switched to STOP state")
 
     def is_playing_state(self):
         """
@@ -212,6 +217,7 @@ class Pipeline:
             self.set_output_branches()
             self.pipeline.set_state(Gst.State.PLAYING)
             self.is_playing = True
+            logger.debug("[main pipeline] Switched to PLAY state")
 
     def set_pause_state(self):
         """
@@ -234,6 +240,7 @@ class Pipeline:
 
         self.set_null_state()
         self.is_playing = False
+        logger.debug("[main pipeline] Switched to STOP state")
 
         # Switch back to preview mode.
         self.pipeline.set_state(Gst.State.PLAYING)
@@ -260,6 +267,7 @@ class Pipeline:
         self._set_default_source(default_source_type_requested)
         self.pipeline.set_state(Gst.State.PLAYING)
         self.is_preview_state = True
+        logger.debug("[main pipeline] Switched to PREVIEW state")
 
     def _set_default_source(self, source_type_requested):
         """
@@ -347,6 +355,7 @@ class Pipeline:
         :param value: :class:`bool`
         """
         self.source_volume.set_property("mute", value)
+        logger.info("Audio input is {}".format("muted" if value else "unmuted"))
 
     def get_speaker_sinks(self):
         """
@@ -378,6 +387,8 @@ class Pipeline:
         for key, value in self.speaker_sinks.items():
             if "Built-in Audio" in key:
                 self.set_speaker_sink(value)
+                logger.debug("[main pipeline] Default loudspeaker sink set to"
+                             " {}".format(value))
                 return
 
     def update_gstelement_properties(self, gstelement, **kargs):
@@ -509,6 +520,8 @@ class Pipeline:
         # ------------------------------------
         #    current_element.set_state(Gst.State.NULL)
         current_bin.remove(current_element)
+        logger.debug("[main pipeline] GstElement dynamically removed from"
+                     " pipeline: '{}'".format(current_element.name))
         self.add_elements(current_bin, (requested_element,))
         if element_before:
             element_before.link(requested_element.gstelement)  # (doesn't apply for input feed)
@@ -633,10 +646,14 @@ class Pipeline:
         Links input and outputs of a ``tee`` element.
         """
         input_element.link(tee_element)
+        logger.debug("[main pipeline] '{}' linked to '{}'".format(
+            input_element.name, tee_element.name))
         tee_element.related_input = input_element
         for output_element in output_elements:
             tee_element.link(output_element)
             tee_element.related_output.append(output_element)
+            logger.debug("[main pipeline] '{}' linked to '{}'".format(
+                tee_element.name, output_element.name))
 
         tee_element.set_connected()
 
@@ -653,6 +670,8 @@ class Pipeline:
                     and item.element_kind == element_kind):
                 tee.gstelement.unlink(item.gstelement)
                 self.pipeline.remove(item.gstelement)
+                logger.debug("[main pipeline] '{}' unlinked and removed its"
+                             " output '{}'".format(tee.name, item.name))
 
     def build_tee_connections(self, *branches):
         """
@@ -740,6 +759,8 @@ class Pipeline:
                     else:
                         gstelement = element.gstelement
                     pipeline.add(gstelement)
+                    logger.debug("[main pipeline] GstElement added to"
+                                 " pipeline: '{}'".format(element.name))
                 except:
                     raise AddingElementError
 
@@ -757,6 +778,8 @@ class Pipeline:
                         gstelement = element.gstelement
 
                     pipeline.remove(gstelement)
+                    logger.debug("[main pipeline] GstElement removed from"
+                                 " pipeline: '{}'".format(element.name))
 
     def link_elements(self, *branches):
         """
@@ -780,6 +803,8 @@ class Pipeline:
                     for parent in item.parents:
                         parent.link(item)
                         previous_item = item
+                        logger.debug("[main pipeline] '{}' linked to '{}'".format(
+                            parent.name, item.name))
 
                 if not previous_item:
                     previous_item = item
@@ -787,6 +812,8 @@ class Pipeline:
                     continue
 
                 previous_item.link(item)
+                logger.debug("[main pipeline] '{}' linked to '{}'".format(
+                    previous_item.name, item.name))
                 previous_item = item
             else:
                 # End of branch
@@ -820,6 +847,9 @@ class Pipeline:
             self.add_elements(self.pipeline, (source_gstelement,))
             source_gstelement.link(branch[index][0])
 
+        logger.info("{} input source set to '{}'".format(
+            "Audio" if not index else "Video", source_element.name))
+
     def remove_input_sources(self):
         """
         Remove all input sources from the pipeline.
@@ -833,6 +863,8 @@ class Pipeline:
                     if parent:
                         source_gstelement.gstelement.unlink(parent)
                     self.pipeline.remove(source_gstelement.gstelement)
+
+        logger.debug("[main pipeline] Removed all input sources")
 
     def set_output_branches(self):
         """
