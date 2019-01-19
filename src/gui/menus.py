@@ -791,7 +791,6 @@ class StreamMenu(AbstractMenu):
             self.password_entry = Gtk.Entry()
             self.password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
             self.password_entry.set_visibility(False)
-            self.password_entry.connect("changed", self.on_password_change)
             password_hbox = utils.build_multi_widgets_hbox(
                 [Gtk.Label("Password :"), ], [self.password_entry, ])
 
@@ -819,6 +818,7 @@ class StreamMenu(AbstractMenu):
             Build mountpoint used by :class:`~core.ioelements.StreamElement`
             based on mountpoint entry and extension choosen.
             """
+            self.mountpoint = self.mountpoint_entry.get_text()
             self.full_mountpoint = (self.mountpoint
                                     + self._get_format_extension())
 
@@ -882,16 +882,8 @@ class StreamMenu(AbstractMenu):
                 self.stream_confirm_button.set_sensitive(True)
 
         def on_mountpoint_change(self, widget):
-            text = widget.get_text()
-            if text != self.mountpoint:
-                self.mountpoint = text
-                if self.port_entry.get_text():
-                    self.stream_confirm_button.set_sensitive(True)
-
-        def on_password_change(self, widget):
-            text = widget.get_text()
-            if text != self.password:
-                self.password = text
+            if widget.get_text() != self.mountpoint and self.port_entry.get_text():
+                self.stream_confirm_button.set_sensitive(True)
 
         def on_format_radiobutton_toggle(self, widget):
             self._change_output_format(widget)
@@ -918,8 +910,9 @@ class StreamMenu(AbstractMenu):
                 if element:
                     status_bar.get_status_bar().remove_remote_element(element)
 
-            self.element_name = self.mountpoint.split("/")[-1]
             self.build_full_mountpoint()
+            self.password = self.password_entry.get_text()
+            self.element_name = self.mountpoint.split("/")[-1]
             if not self.sink:
                 self.sink = self.pipeline.create_stream_branch(
                     self.element_name, self.current_stream_type, self.address,
@@ -1027,7 +1020,7 @@ class StoreMenu(AbstractMenu):
             self.name_entry.set_width_chars(25)
             self.name_entry.set_input_purpose(Gtk.InputPurpose.ALPHA)
             self.name_entry.set_placeholder_text("Type a filename")
-            self.name_entry.connect("changed", self.on_entry_change)
+            self.name_entry.connect("changed", self.on_name_change)
             name_hbox = utils.build_multi_widgets_hbox(
                 [Gtk.Label("Name :"), ], [self.name_entry, ])
 
@@ -1137,26 +1130,26 @@ class StoreMenu(AbstractMenu):
             self.on_confirm_clicked(self.store_confirm_button)
 
         def on_folder_selected(self, widget):
-            self.folder_selection = widget.get_filename()
-            if self.filename:
+            if self.name_entry.get_text():
                 self.store_confirm_button.set_sensitive(True)
 
-        def on_entry_change(self, widget):
-            text = widget.get_text()
-            if text != self.filename:
-                self.filename = text
-                if self.folder_selection:
-                    self.store_confirm_button.set_sensitive(True)
+        def on_name_change(self, widget):
+            if (widget.get_text() != self.filename
+                    and self.folder_chooser_button.get_filename()):
+                self.store_confirm_button.set_sensitive(True)
 
         def on_format_radiobutton_toggle(self, widget):
             self._change_output_format(widget)
             self.vbox.reorder_child(self.store_confirm_button, -1)
 
-            if self.folder_selection and self.filename:
+            if (self.folder_chooser_button.get_filename()
+                    and self.name_entry.get_text()):
                 self.store_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
+            self.filename = self.name_entry.get_text()
             self.create_unique_filename()
+            self.folder_selection = self.folder_chooser_button.get_filename()
             self.build_filepath()
             element_name = self.current_stream_type + "_" + self.filename
             if not self.sink:
@@ -1319,22 +1312,23 @@ class SettingsMenu(AbstractMenu):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_text_change(self, widget):
-        self.requested_text_overlay = widget.get_text()
         self.settings_confirm_button.set_sensitive(True)
 
     def on_image_selected(self, widget):
-        self.requested_image_path = widget.get_filename()
         self.settings_confirm_button.set_sensitive(True)
 
     def on_hide_text_toggle(self, widget):
-        self.hide_text_requested = widget.get_active()
         self.settings_confirm_button.set_sensitive(True)
 
     def on_hide_image_toggle(self, widget):
-        self.hide_image_requested = widget.get_active()
         self.settings_confirm_button.set_sensitive(True)
 
     def on_confirm_clicked(self, widget):
+        self.requested_text_overlay = self.text_overlay_entry.get_text()
+        self.requested_image_path = self.image_chooser_button.get_filename()
+        self.hide_text_requested = self.hide_text_checkbutton.get_active()
+        self.hide_image_requested = self.hide_image_checkbutton.get_active()
+
         if not self.hide_text_requested:
             self.pipeline.set_text_overlay(
                 self.requested_text_overlay, "left", "top")
