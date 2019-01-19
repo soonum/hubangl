@@ -19,6 +19,7 @@
 # Copyright (c) 2016-2018 David Testé
 
 import abc
+import logging
 import os
 import socket
 import time
@@ -35,6 +36,10 @@ from gui import utils
 AUDIO_VIDEO_STREAM = process.AUDIO_VIDEO_STREAM
 VIDEO_ONLY_STREAM = process.VIDEO_ONLY_STREAM
 AUDIO_ONLY_STREAM = process.AUDIO_ONLY_STREAM
+
+_PROPERTIES_SET = "[gui] Properties set in {section} menu"
+
+logger = logging.getLogger("gui.main_window")
 
 
 class AbstractMenu:
@@ -394,6 +399,12 @@ class AbstractMenu:
         self.vbox.reorder_child(child, -2)
         self.vbox.show_all()
 
+    def _get_feed_type(self):
+        for button in (self.audio_radiobutton, self.audiovideo_radiobutton,
+                       self.video_radiobutton):
+            if button.get_active():
+                return button.get_label()
+
     def set_active_text(self, comboboxtext_widget, text_list, text):
         """
         Set active text of ``comboboxtext_widget`` to ``text`` if ``text`` is
@@ -535,6 +546,8 @@ class VideoMenu(AbstractMenu):
         if usb_source_selected:
             self.on_confirm_clicked(self.video_confirm_button)
 
+        logger.debug(_PROPERTIES_SET.format(section="video"))
+
     def on_video_input_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
@@ -668,6 +681,8 @@ class AudioMenu(AbstractMenu):
         if audio_source_selected:
             self.on_confirm_clicked(self.audio_confirm_button)
 
+        logger.debug(_PROPERTIES_SET.format(section="audio"))
+
     def on_audio_input_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
@@ -748,6 +763,7 @@ class StreamMenu(AbstractMenu):
             self._index = index
 
             self.server_address_entries = None
+            self.hostname = None
             self.address = None
             self.port = None
             self.mountpoint = None
@@ -822,6 +838,22 @@ class StreamMenu(AbstractMenu):
             self.full_mountpoint = (self.mountpoint
                                     + self._get_format_extension())
 
+        def _log_changes(self):
+            for name, previous_value, new_value in (
+                    ("hostname", self.hostname, self.host_entry.get_text()),
+                    ("port", self.port, self.port_entry.get_text()),
+                    ("mount point", self.mountpoint, self.mountpoint_entry.get_text()),
+                    ("password", self.password, self.password_entry.get_text()),
+                    ("feed type", self.current_stream_type, self._get_feed_type())):
+                if previous_value != new_value:
+                    if name == "password":
+                        # Don't print password in logs
+                        new_value = "*"
+                    logger.info("[gui] stream_{index} {name} set to"
+                                " '{value}'".format(index=self._index,
+                                                    name=name,
+                                                    value=new_value))
+
         def get_properties(self):
             """
             Get Gstreamer properties of
@@ -872,6 +904,7 @@ class StreamMenu(AbstractMenu):
             self._set_format_extension(feed_format_value)
 
             self.on_confirm_clicked(self.stream_confirm_button)
+            logger.debug(_PROPERTIES_SET.format(section="stream"))
 
         def on_host_change(self, widget):
             if self.port_entry.get_text() and self.mountpoint:
@@ -895,6 +928,9 @@ class StreamMenu(AbstractMenu):
                 self.stream_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
+            self._log_changes()
+
+            self.hostname = self.host_entry.get_text()
             previous_address = self.address
             previous_port = self.port
             try:
@@ -910,6 +946,7 @@ class StreamMenu(AbstractMenu):
                 if element:
                     status_bar.get_status_bar().remove_remote_element(element)
 
+            self.feed_type = self._get_feed_type()
             self.build_full_mountpoint()
             self.password = self.password_entry.get_text()
             self.element_name = self.mountpoint.split("/")[-1]
@@ -931,6 +968,9 @@ class StreamMenu(AbstractMenu):
 
                 self._settings_revealer.remove(self.hbox)
                 self._parent_container.show_all()
+
+                logger.info("[gui] stream_{} '{}' endpoint created".format(
+                    self._index, self.element_name))
 
             self.stream_confirm_button.set_label("Confirm")
             self.stream_confirm_button.set_sensitive(False)
@@ -1075,6 +1115,17 @@ class StoreMenu(AbstractMenu):
             self.filepath = os.path.join(
                 self.folder_selection, self.full_filename)
 
+        def _log_changes(self):
+            for name, previous_value, new_value in (
+                    ("directory", self.folder_selection, self.folder_chooser_button.get_filename()),
+                    ("filename", self.filename, self.name_entry.get_text()),
+                    ("feed type", self.current_stream_type, self._get_feed_type())):
+                if previous_value != new_value:
+                    logger.info("[gui] store_{index} {name} set to"
+                                " '{value}'".format(index=self._index,
+                                                    name=name,
+                                                    value=new_value))
+
         def get_properties(self):
             """
             Get Gstreamer properties of
@@ -1116,9 +1167,7 @@ class StoreMenu(AbstractMenu):
             feed_format_value = kargs.get("feed_format")
 
             self.folder_chooser_button.set_filename(folder_selected)
-            self.folder_selection = folder_selected
             self.name_entry.set_text(name_entry_value)
-            self.filename = name_entry_value
             self.automatic_naming_checkbutton.set_active(
                 automatic_naming_value)
             self.audiovideo_radiobutton.set_active(
@@ -1128,6 +1177,7 @@ class StoreMenu(AbstractMenu):
             self._set_format_extension(feed_format_value)
 
             self.on_confirm_clicked(self.store_confirm_button)
+            logger.debug(_PROPERTIES_SET.format(section="store"))
 
         def on_folder_selected(self, widget):
             if self.name_entry.get_text():
@@ -1147,6 +1197,8 @@ class StoreMenu(AbstractMenu):
                 self.store_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
+            self._log_changes()
+
             self.filename = self.name_entry.get_text()
             self.create_unique_filename()
             self.folder_selection = self.folder_chooser_button.get_filename()
@@ -1165,6 +1217,9 @@ class StoreMenu(AbstractMenu):
 
                 self._settings_revealer.remove(self.hbox)
                 self._parent_container.show_all()
+
+                logger.info("[gui] store_{} '{}' endpoint created".format(
+                    self._index, self.full_filename))
 
             self.store_confirm_button.set_label("Confirm")
             self.store_confirm_button.set_sensitive(False)
@@ -1256,6 +1311,16 @@ class SettingsMenu(AbstractMenu):
         return (self.requested_text_overlay,
                 self.h_alignment, self.v_alignment)
 
+    def _log_changes(self):
+        for name, previous_value, new_value in (
+                ("Text overlay", self.requested_text_overlay, self.text_overlay_entry.get_text()),
+                ("Image overlay path", self.requested_image_path, self.image_chooser_button.get_filename()),
+                ("Hide text", self.hide_text_requested, self.hide_text_checkbutton.get_active()),
+                ("Hide image", self.hide_image_requested, self.hide_image_checkbutton.get_active())):
+            if previous_value != new_value:
+                logger.info("[gui] {name} set to '{value}'".format(
+                    name=name, value=new_value))
+
     def get_properties(self):
         """
         Get properties set in the menu.
@@ -1307,6 +1372,7 @@ class SettingsMenu(AbstractMenu):
         self.hide_image_checkbutton.set_active(hide_image_value)
 
         self.on_confirm_clicked(self.settings_confirm_button)
+        logger.debug(_PROPERTIES_SET.format(section="settings"))
 
     def on_settings_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
@@ -1324,6 +1390,8 @@ class SettingsMenu(AbstractMenu):
         self.settings_confirm_button.set_sensitive(True)
 
     def on_confirm_clicked(self, widget):
+        self._log_changes()
+
         self.requested_text_overlay = self.text_overlay_entry.get_text()
         self.requested_image_path = self.image_chooser_button.get_filename()
         self.hide_text_requested = self.hide_text_checkbutton.get_active()
