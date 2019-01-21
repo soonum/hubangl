@@ -451,9 +451,6 @@ class Pipeline:
         """
         Callback for blocking data flow between 2 or 3 elements.
         """
-        BLOCK_PROBE = Gst.PadProbeType.BLOCK
-        EVENT_DOWNSTREAM_PROBE = Gst.PadProbeType.EVENT_DOWNSTREAM
-
         # Remove the probe first
         Gst.Pad.remove_probe(pad, info.id)
 
@@ -470,9 +467,8 @@ class Pipeline:
             parent_needed = True
         else:
             parent_needed = False
-        Gst.Pad.add_probe(
-            sourcepad, BLOCK_PROBE or EVENT_DOWNSTREAM_PROBE,
-            self.event_probe_cb, user_data,)
+        Gst.Pad.add_probe(sourcepad, Gst.PadProbeType.EVENT_DOWNSTREAM,
+                          self.event_probe_cb, user_data,)
 
         # Push EOS into the element, the probe will be fired when the
         # EOS leaves the element and it has thus drained all of its data
