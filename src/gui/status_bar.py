@@ -20,6 +20,7 @@
 
 import abc
 import concurrent.futures
+import logging
 import time
 
 from gi.repository import Gtk
@@ -32,6 +33,8 @@ from gui import utils
 UPDATE_STATUS_FREQUENCY = .5
 
 _images = images.HubanglImages()
+
+logger = logging.getLogger("gui.status_bar")
 
 
 class StatusBar:
@@ -101,8 +104,12 @@ class StatusBar:
 
         :param element: :class:`core.watch.LocalElement`
         """
-        watched_element = WatchedLocal(element)
-        self._add_watched_element(self._hbox_local, watched_element)
+        try:
+            watched_element = WatchedLocal(element)
+            self._add_watched_element(self._hbox_local, watched_element)
+        except Exception:
+            logger.exception(
+                "Unexpected error on adding local element into status bar")
 
     def add_remote_element(self, element):
         """
@@ -110,8 +117,12 @@ class StatusBar:
 
         :param element: :class:`core.watch.RemoteElement`
         """
-        watched_element = WatchedRemote(element)
-        self._add_watched_element(self._hbox_remote, watched_element)
+        try:
+            watched_element = WatchedRemote(element)
+            self._add_watched_element(self._hbox_remote, watched_element)
+        except Exception:
+            logger.exception(
+                "Unexpected error on adding remote element into status bar")
 
     def _add_watched_element(self, box, watched_element):
         # Keeping a reference is needed to handle its callbacks properly
