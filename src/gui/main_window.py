@@ -101,9 +101,9 @@ class MainWindow:
 
     def _build_menu_new(self, menu_bar):
         """
-        Build the whole New menu item.
+        Build the whole File menu item.
         """
-        menu_item = self._build_menu_item("New", menu_bar)
+        menu_item = self._build_menu_item("File", menu_bar)
         self.dropmenu_new = Gtk.Menu()
         menu_item.set_submenu(self.dropmenu_new)
         self.subitem_new_session = self._build_menu_item(
