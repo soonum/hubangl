@@ -110,8 +110,9 @@ def parse_pactl_list(filepath, output_dict,):
                                         TYPE: TYPE_OUT,
                                         GSTELEM: GSTINIT}}
                 output_dict.update(entry)
-                logger.debug("Audio {} found: '{}'".format(
-                    entry[dev_name][TYPE], dev_name))
+                if entry.get(dev_name):
+                    logger.debug("Audio {} found: '{}'".format(
+                        entry[dev_name][TYPE], dev_name))
 
                 dev_name = ''
                 dev_descrip = ''
