@@ -171,7 +171,7 @@ class MainWindow:
                 "Audio", self.dropmenu_inputs,
                 image=self.images.icons["micro"]["regular_16px"],
                 callback=self.on_audio_input_clicked,
-                accelerator_key="<alt>A"
+                accelerator_key="<alt>U"
         )
         self.subitem_video = self._build_menu_item(
                 "Video", self.dropmenu_inputs,
