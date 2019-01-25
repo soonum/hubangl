@@ -36,7 +36,6 @@ from gui import utils
 
 
 _FEED_STATE_CHANGED = "Changed feed state to {state}"
-_AUDIO_STATE_CHANGED = "Changed audio output state to {state}"
 
 logger = logging.getLogger("gui.feed")
 
@@ -313,7 +312,7 @@ class ControlBar:
             "Mute",
             self.images.icons["speaker"]["striked"],
             on_signal="clicked",
-            callback=self.on_mute_clicked
+            callback=self.on_mute_speakers_clicked
         )
 
         self._populate_toolbar(toolbar,
@@ -407,15 +406,12 @@ class ControlBar:
 
         logger.info(_FEED_STATE_CHANGED.format(state="STOP"))
 
-    def on_mute_clicked(self, widget):
+    def on_mute_speakers_clicked(self, widget):
         if self._pipeline.speaker_volume.get_property("mute"):
-            self._pipeline.speaker_volume.set_property("mute", False)
+            self.audio_menu.mute_speakers_checkbutton.set_active(False)
             widget.set_icon_widget(self.images.icons["speaker"]["regular"])
-            state = "UNMUTED"
         else:
-            self._pipeline.speaker_volume.set_property("mute", True)
+            self.audio_menu.mute_speakers_checkbutton.set_active(True)
             widget.set_icon_widget(self.images.icons["speaker"]["striked"])
-            state = "MUTED"
-        widget.show_all()
 
-        logger.debug(_AUDIO_STATE_CHANGED.format(state=state))
+        widget.show_all()

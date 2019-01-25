@@ -38,6 +38,7 @@ VIDEO_ONLY_STREAM = process.VIDEO_ONLY_STREAM
 AUDIO_ONLY_STREAM = process.AUDIO_ONLY_STREAM
 
 _PROPERTIES_SET = "[gui] Properties set in {section} menu"
+_AUDIO_STATE_CHANGED = "Changed audio output state to {state}"
 
 logger = logging.getLogger("gui.main_window")
 
@@ -609,8 +610,16 @@ class AudioMenu(AbstractMenu):
         self.mic_sources.connect("changed", self.on_input_change)
         self.mic_sources.set_margin_start(24)
 
-        self.mute_checkbutton = Gtk.CheckButton("Mute")
-        self.mute_checkbutton.connect("toggled", self.on_mute_toggle)
+        self.mute_input_checkbutton = Gtk.CheckButton("Mute")
+        self.mute_input_checkbutton.connect(
+            "toggled", self.on_mute_input_toggle)
+        self.mute_speakers_checkbutton = Gtk.CheckButton("Mute")
+        self.mute_speakers_checkbutton.connect(
+            "toggled", self.on_mute_speakers_toggle)
+        # Mute loudspeakers by default
+        self.mute_speakers_checkbutton.set_active(True)
+        # Check button activable from another place (gui.feed)
+        self.mute_speakers_checkbutton.set_sensitive(False)
 
         self.output_sinks = Gtk.ComboBoxText()
         index = 0
@@ -632,8 +641,9 @@ class AudioMenu(AbstractMenu):
         utils.pack_widgets(vbox,
                            header,
                            self.mic_sources,
-                           self.mute_checkbutton,
+                           self.mute_input_checkbutton,
                            self.output_sinks,
+                           self.mute_speakers_checkbutton,
                            self.audio_confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
@@ -646,11 +656,13 @@ class AudioMenu(AbstractMenu):
         """
         audio_source_selected = self.mic_sources.get_active_text()
         audio_sink_selected = self.output_sinks.get_active_text()
-        source_muted = self.mute_checkbutton.get_active()
+        source_muted = self.mute_input_checkbutton.get_active()
+        speakers_muted = self.mute_speakers_checkbutton.get_active()
 
         return {"audio_source_selected": audio_source_selected,
                 "audio_sink_selected": audio_sink_selected,
-                "source_muted": source_muted}
+                "source_muted": source_muted,
+                "speakers_muted": speakers_muted}
 
     def set_properties(self, **kargs):
         """
@@ -660,14 +672,16 @@ class AudioMenu(AbstractMenu):
         """
         audio_source_selected = kargs.get("audio_source_selected")
         audio_sink_selected = kargs.get("audio_sink_selected")
-        source_muted = kargs.get("source_muted")
+        source_muted = kargs.get("source_muted", False)
+        speakers_muted = kargs.get("speakers_muted", True)
 
         self.requested_audio_source = None
         self.current_audio_source = None
         self.set_active_text(
             self.mic_sources, self.sources_list, audio_source_selected)
         self.on_input_change(self.mic_sources)
-        self.mute_checkbutton.set_active(source_muted)
+        self.mute_input_checkbutton.set_active(source_muted)
+        self.mute_speakers_checkbutton.set_active(speakers_muted)
 
         # TODO: Handle user choice for output audio sink, currently this
         # implementation overrides user's choice by setting automatically
@@ -696,11 +710,24 @@ class AudioMenu(AbstractMenu):
         # self.requested_audio_sink = self.pipeline.get_source_by_name(
         #    widget.get_active_text())  # DEV
 
-    def on_mute_toggle(self, widget):
+    def on_mute_input_toggle(self, widget):
         """
         Mute audio input in the pipeline. This take effect immediatly.
         """
         self.pipeline.mute_audio_input(widget.get_active())
+
+    def on_mute_speakers_toggle(self, widget):
+        """
+        Mute the loudspeakers/headphones output. This take effect immediatly.
+        """
+        if widget.get_active():
+            self.pipeline.speaker_volume.set_property("mute", True)
+            state = "UNMUTED"
+        else:
+            self.pipeline.speaker_volume.set_property("mute", False)
+            state = "MUTED"
+
+        logger.debug(_AUDIO_STATE_CHANGED.format(state=state))
 
     def on_confirm_clicked(self, widget):
         if self.requested_audio_source != self.current_audio_source:
