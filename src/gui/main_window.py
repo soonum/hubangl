@@ -64,7 +64,7 @@ class MainWindow:
         self.current_app_container = self.current_app.container
 
         self.menu_bar = Gtk.MenuBar()
-        self.menu_item_new = self._build_menu_new(self.menu_bar)
+        self.menu_item_file = self._build_menu_file(self.menu_bar)
         self.menu_item_feed = self._build_menu_feed(self.menu_bar)
         self.menu_item_view, self.current_view_mode = self._build_menu_view(
                 self.menu_bar
@@ -99,40 +99,40 @@ class MainWindow:
                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
 
-    def _build_menu_new(self, menu_bar):
+    def _build_menu_file(self, menu_bar):
         """
-        Build the whole New menu item.
+        Build the whole File menu item.
         """
-        menu_item = self._build_menu_item("New", menu_bar)
-        self.dropmenu_new = Gtk.Menu()
-        menu_item.set_submenu(self.dropmenu_new)
+        menu_item = self._build_menu_item("File", menu_bar)
+        self.dropmenu_file = Gtk.Menu()
+        menu_item.set_submenu(self.dropmenu_file)
         self.subitem_new_session = self._build_menu_item(
-            "New Session", self.dropmenu_new,
+            "New Session", self.dropmenu_file,
             image=Gtk.STOCK_NEW,
             accelerator_key="<control>N"
         )
         self.subitem_save_configuration = self._build_menu_item(
-            "Save configuration", self.dropmenu_new,
+            "Save configuration", self.dropmenu_file,
             image=Gtk.STOCK_SAVE, callback=self.on_save_clicked,
             accelerator_key="<control>S"
         )
         self.subitem_load_configuration = self._build_menu_item(
-            "Load Configuration", self.dropmenu_new,
+            "Load Configuration", self.dropmenu_file,
             image=Gtk.STOCK_FILE, callback=self.on_load_clicked,
             accelerator_key="<control>L"
         )
         self.subitem_recent_session = self._build_menu_item(
-            "Recent Session", self.dropmenu_new,
+            "Recent Session", self.dropmenu_file,
             image=Gtk.STOCK_REVERT_TO_SAVED
         )
         self.subitem_preferences = self._build_menu_item(
-            "Preferences", self.dropmenu_new,
+            "Preferences", self.dropmenu_file,
             image=Gtk.STOCK_PREFERENCES,
             accelerator_key="<control>R"
         )
-        self._build_separatormenuitem(self.dropmenu_new)
+        self._build_separatormenuitem(self.dropmenu_file)
         self.subitem_quit = self._build_menu_item(
-            "Quit", self.dropmenu_new,
+            "Quit", self.dropmenu_file,
             image=Gtk.STOCK_QUIT, callback=self.on_mainwindow_close,
             accelerator_key="<control>Q"
         )
@@ -480,7 +480,7 @@ class MainWindow:
     def on_settings_clicked(self, widget):
         self.current_app.feed.settings_menu.on_settings_clicked(widget)
 
-    def on_menu_item_new_activate(self, widget):
+    def on_menu_item_file_activate(self, widget):
         pass
 
     def on_standalone_mode(self, widget):
