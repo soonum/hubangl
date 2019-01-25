@@ -277,7 +277,6 @@ class Pipeline:
             requested as :class:`str`, it can be ``audio`` or ``video``
         """
         if source_type_requested == "audio":
-            self.text_overlay.set_property("text", "PREVIEW")
             self._build_default_audio_source()
         elif source_type_requested == "video":
             self._build_default_video_source()
