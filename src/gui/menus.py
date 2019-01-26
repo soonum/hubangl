@@ -603,23 +603,35 @@ class AudioMenu(AbstractMenu):
         """
         header = self._build_header("Audio Source")
 
+        self.mute_input_checkbutton = Gtk.CheckButton("Mute")
+        self.mute_input_checkbutton.connect(
+            "toggled", self.on_mute_input_toggle)
+
+        input_hbox = Gtk.Box()
+        input_hbox.pack_start(Gtk.Label("Input"), False, False, 0)
+        input_hbox.pack_end(self.mute_input_checkbutton, False, False, 0)
+
         self.mic_sources = Gtk.ComboBoxText()
         for source in self.pipeline.audio_sources:
             self.mic_sources.append_text(source.name)
             self.sources_list.append(source.name)
         self.mic_sources.connect("changed", self.on_input_change)
-        self.mic_sources.set_margin_start(24)
 
-        self.mute_input_checkbutton = Gtk.CheckButton("Mute")
-        self.mute_input_checkbutton.connect(
-            "toggled", self.on_mute_input_toggle)
-        self.mute_speakers_checkbutton = Gtk.CheckButton("Mute")
-        self.mute_speakers_checkbutton.connect(
-            "toggled", self.on_mute_speakers_toggle)
+        sources_hbox, _ = self._build_subsection(self.mic_sources)
+
+        self.mute_monitor_checkbutton = Gtk.CheckButton("Mute")
+        self.mute_monitor_checkbutton.connect(
+            "toggled", self.on_mute_monitor_toggle)
         # Mute loudspeakers by default
-        self.mute_speakers_checkbutton.set_active(True)
+        self.mute_monitor_checkbutton.set_active(True)
         # Check button activable from another place (gui.feed)
-        self.mute_speakers_checkbutton.set_sensitive(False)
+        self.mute_monitor_checkbutton.set_sensitive(False)
+        self.mute_monitor_checkbutton.set_tooltip_text(
+            "State can be changed from media control bar")
+
+        monitor_hbox = Gtk.Box()
+        monitor_hbox.pack_start(Gtk.Label("Monitor"), False, False, 0)
+        monitor_hbox.pack_end(self.mute_monitor_checkbutton, False, False, 0)
 
         self.output_sinks = Gtk.ComboBoxText()
         index = 0
@@ -630,7 +642,8 @@ class AudioMenu(AbstractMenu):
                 self.output_sinks.set_active(index)
             index += 1
         self.output_sinks.connect("changed", self.on_output_change)
-        self.output_sinks.set_margin_start(24)
+
+        sinks_hbox, _ = self._build_subsection(self.output_sinks)
 
         self.audio_confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
@@ -640,10 +653,10 @@ class AudioMenu(AbstractMenu):
         vbox.set_margin_end(6)
         utils.pack_widgets(vbox,
                            header,
-                           self.mic_sources,
-                           self.mute_input_checkbutton,
-                           self.output_sinks,
-                           self.mute_speakers_checkbutton,
+                           input_hbox,
+                           sources_hbox,
+                           monitor_hbox,
+                           sinks_hbox,
                            self.audio_confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
@@ -657,12 +670,12 @@ class AudioMenu(AbstractMenu):
         audio_source_selected = self.mic_sources.get_active_text()
         audio_sink_selected = self.output_sinks.get_active_text()
         source_muted = self.mute_input_checkbutton.get_active()
-        speakers_muted = self.mute_speakers_checkbutton.get_active()
+        monitor_muted = self.mute_monitor_checkbutton.get_active()
 
         return {"audio_source_selected": audio_source_selected,
                 "audio_sink_selected": audio_sink_selected,
                 "source_muted": source_muted,
-                "speakers_muted": speakers_muted}
+                "monitor_muted": monitor_muted}
 
     def set_properties(self, **kargs):
         """
@@ -673,7 +686,7 @@ class AudioMenu(AbstractMenu):
         audio_source_selected = kargs.get("audio_source_selected")
         audio_sink_selected = kargs.get("audio_sink_selected")
         source_muted = kargs.get("source_muted", False)
-        speakers_muted = kargs.get("speakers_muted", True)
+        monitor_muted = kargs.get("monitor_muted", True)
 
         self.requested_audio_source = None
         self.current_audio_source = None
@@ -681,7 +694,7 @@ class AudioMenu(AbstractMenu):
             self.mic_sources, self.sources_list, audio_source_selected)
         self.on_input_change(self.mic_sources)
         self.mute_input_checkbutton.set_active(source_muted)
-        self.mute_speakers_checkbutton.set_active(speakers_muted)
+        self.mute_monitor_checkbutton.set_active(monitor_muted)
 
         # TODO: Handle user choice for output audio sink, currently this
         # implementation overrides user's choice by setting automatically
@@ -716,7 +729,7 @@ class AudioMenu(AbstractMenu):
         """
         self.pipeline.mute_audio_input(widget.get_active())
 
-    def on_mute_speakers_toggle(self, widget):
+    def on_mute_monitor_toggle(self, widget):
         """
         Mute the loudspeakers/headphones output. This take effect immediatly.
         """

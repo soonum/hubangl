@@ -408,10 +408,10 @@ class ControlBar:
 
     def on_mute_speakers_clicked(self, widget):
         if self._pipeline.speaker_volume.get_property("mute"):
-            self.audio_menu.mute_speakers_checkbutton.set_active(False)
+            self.audio_menu.mute_monitor_checkbutton.set_active(False)
             widget.set_icon_widget(self.images.icons["speaker"]["regular"])
         else:
-            self.audio_menu.mute_speakers_checkbutton.set_active(True)
+            self.audio_menu.mute_monitor_checkbutton.set_active(True)
             widget.set_icon_widget(self.images.icons["speaker"]["striked"])
 
         widget.show_all()
