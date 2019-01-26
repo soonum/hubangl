@@ -233,9 +233,11 @@ class WatchedRemote(WatchedElement):
         self._port_open_values = {True: "Open", False: "Closed", None: "N/A"}
 
         self._hostname = Gtk.Label(self.element.hostname)
+        self._hostname.set_tooltip_text("Hostname")
         self._host_running = Gtk.Label(
             self._host_running_values[self.element.host_running])
         self._port = Gtk.Label(self.element.port)
+        self._port.set_tooltip_text("Server port")
         self._port_open = Gtk.Label(
             self._port_open_values[self.element.port_open])
         self._latency = Gtk.Label(str(self.element.latency))
