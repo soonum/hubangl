@@ -509,23 +509,19 @@ class Pipeline:
         sinkpad = current_element.get_static_pad("sink")
         element_before = self.get_connected_element(sinkpad)
 
-        # -------------------------------------
-        # No need to change element's state to NULL before removing?
-        # If so --> thread deadlock (has to be investigated and debugged)
-        # ------------------------------------
-        #    current_element.set_state(Gst.State.NULL)
+        current_element.set_state(Gst.State.NULL)
         current_bin.remove(current_element)
         logger.debug("[main pipeline] GstElement dynamically removed from"
                      " pipeline: '{}'".format(current_element.name))
+
         self.add_elements(current_bin, (requested_element,))
         if element_before:
-            element_before.link(requested_element.gstelement)  # (doesn't apply for input feed)
+            # This doesn't apply for input sources
+            element_before.link(requested_element.gstelement)
         if element_after:
-            requested_element.gstelement.link(element_after)  # (doesn't apply for screensink, filesink)
-        # Not sure about setting requested_element in PLAYING state
-        # TODO: Maybe call set_play_state
-        current_element = None
-        requested_element.gstelement.set_state(Gst.State.PAUSED)
+            # This doesn't apply for ouptut sinks
+            requested_element.gstelement.link(element_after)
+
         requested_element.gstelement.set_state(Gst.State.PLAYING)
 
         return Gst.PadProbeReturn.DROP
