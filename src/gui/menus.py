@@ -418,7 +418,10 @@ class AbstractMenu:
         for index, text_element in enumerate(text_list):
             if text == text_element:
                 comboboxtext_widget.set_active(index)
-                break
+                return
+
+        logger.error("[gui] Device '{}' has not been found"
+                     " (available devices: {})".format(text, text_list))
 
     def has_sink_set(self):
         """
