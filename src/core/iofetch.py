@@ -148,7 +148,7 @@ def find_usbcam():
         dev_infopath = [VIDEO_DEVICE_PATH + dev for dev in listdir(VIDEO_DEVICE_PATH)]
     except FileNotFoundError:
         logger.info("No USB camera is available")
-        return None
+        return {}
     else:
         for dev in dev_infopath:
             dev_namepath = path.realpath(dev) + r'/name'
