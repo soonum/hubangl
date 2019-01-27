@@ -962,9 +962,9 @@ class StreamMenu(AbstractMenu):
             self._change_output_format(widget)
             self.vbox.reorder_child(self.stream_confirm_button, -1)
 
-            if (self.server_address_entries
-                    and self.port_entry
-                    and self.mountpoint_entry):
+            if (self.host_entry.get_text()
+                    and self.port_entry.get_text()
+                    and self.mountpoint_entry.get_text()):
                 self.stream_confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
