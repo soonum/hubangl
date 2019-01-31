@@ -16,7 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with HUBAngl.  If not, see <http://www.gnu.org/licenses/>.
 
-Copyright (c) 2016-2018 David Testé
+Copyright (c) 2016-2019 David Testé
 
 Files
 =====
@@ -49,6 +49,10 @@ Settings_PNG_Icon_24-24_px.png
 Speaker_activated_PNG_Icon_24-24_px.png
 Speaker_PNG_Icon_24-24_px.png
 Speaker_striked_PNG_Icon_24-24_px.png
+Square_green_PNG_Icon_16-16_px.png
+Square_green_PNG_Icon_24-24_px.png
+Square_red_PNG_Icon_16-16_px.png
+Square_red_PNG_Icon_24-24_px.png
 Stop_activated_PNG_Icon_24-24_px.png
 Stop_PNG_Icon_16-16_px.png
 Stop_PNG_Icon_24-24_px.png
