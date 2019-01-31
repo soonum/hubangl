@@ -43,7 +43,7 @@ logger = logging.getLogger("gui.feed")
 class Feed:
     """
     """
-    def __init__(self, mode, images):
+    def __init__(self, images):
         self.hbox = Gtk.Box(Gtk.Orientation.HORIZONTAL)
 
         self.menu_revealer = self._build_revealer()
@@ -56,11 +56,11 @@ class Feed:
         self.video_monitor.set_valign(Gtk.Align.FILL)
         self.video_monitor.set_size_request(700, 400)
 
-        self.placeholder_pipeline = self.get_placeholder_pipeline()
+        self.placeholder_pipeline = process.PlaceholderPipeline()
         self.placeholder_bus = self.create_gstreamer_bus(
             self.placeholder_pipeline.pipeline)
 
-        self.pipeline = self.create_pipeline_instance(mode)
+        self.pipeline = process.Pipeline()
         self.bus = self.create_gstreamer_bus(self.pipeline.pipeline)
         self.xid = None
 
@@ -95,30 +95,6 @@ class Feed:
 
     def set_xid(self):
         self.xid = self.video_monitor.get_property("window").get_xid()
-
-    def get_placeholder_pipeline(self):
-        """
-        Get a placeholder pipeline from
-        :class:`~core.process.PlaceholderPipeline`
-        """
-        return process.PlaceholderPipeline()
-
-    def create_pipeline_instance(self, mode):
-        """
-        Create pipeline instance and attaches it to GUI.
-
-        :param mode: application mode as :class:`str`
-
-        :return: :class:`~core.process.Pipeline` or one of it subclasses
-        """
-        if mode == "standalone":
-            return process.Pipeline()
-        elif mode == "monitoring":
-            return process.Monitoring()
-        elif mode == "controlroom":
-            return process.ControlRoom()
-        else:
-            raise ValueError
 
     def create_gstreamer_bus(self, pipeline_element):
         """

@@ -36,17 +36,13 @@ logger = logging.getLogger("gui.main_window")
 
 class MainWindow:
     """
-    Main window of user interface.
-    Specific application is pluged to it depending on view mode selected,
-    default application launched is StandaloneApp.
+    Graphical user interface main window.
 
     :param options: input arguments as :class:`argparse.Namespace`
     """
     def __init__(self, options, *args, **kwargs):
         #: Filename of a session to load
         self.session = options.load
-        #: View mode at startup
-        #self.mode = options.mode
 
         self.images = images.HubanglImages()
         self._load_custom_css()
@@ -60,15 +56,11 @@ class MainWindow:
         self.window.connect("delete_event", self.on_mainwindow_close)
         self.window.add_accel_group(self.accel_group)
 
-        self.current_app = BaseApp(self.window, "standalone", self.images)
-        self.current_app_container = self.current_app.container
+        self.feed = feed.Feed(self.images)
 
         self.menu_bar = Gtk.MenuBar()
         self.menu_item_file = self._build_menu_file(self.menu_bar)
         self.menu_item_feed = self._build_menu_feed(self.menu_bar)
-        self.menu_item_view, self.current_view_mode = self._build_menu_view(
-                self.menu_bar
-        )
         self.menu_item_help = self._build_menu_help(self.menu_bar)
 
         self.status_bar = status_bar.get_status_bar()
@@ -76,12 +68,15 @@ class MainWindow:
         self.main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.main_vbox.pack_start(self.menu_bar, False, False, 0)
         self.main_vbox.pack_end(self.status_bar.container, False, False, 0)
-        self.main_vbox.pack_end(self.current_app_container, True, True, 0)
+        self.main_vbox.pack_end(self.feed.hbox, True, True, 0)
 
         self.window.add(self.main_vbox)
         self.window.show_all()
 
-        self.current_app.make_app()
+        # Get Window ID
+        self.feed.set_xid()
+
+        self.feed.placeholder_pipeline.set_play_state()
 
         if self.session:
             self.load_session(self.session)
@@ -209,48 +204,6 @@ class MainWindow:
 
         return menu_item
 
-    def _build_menu_view(self, menu_bar):
-        """
-        Build the whole View menu item.
-        """
-        menu_item = self._build_menu_item("View", menu_bar)
-        self.dropmenu_view = Gtk.Menu()
-        menu_item.set_submenu(self.dropmenu_view)
-
-        # Modes
-        self.subitem_mode = self._build_menu_item(
-            "Mode", self.dropmenu_view
-        )
-        self.dropmenu_mode = Gtk.Menu()
-        self.subitem_mode.set_submenu(self.dropmenu_mode)
-        self.subradioitem_standalone = self._build_radiomenuitem(
-            "Standalone",
-            self.dropmenu_mode,
-            set_active=True,
-            on_signal="activate",
-            callback=self.on_standalone_mode
-        )
-        self.subradioitem_controlroom = self._build_radiomenuitem(
-            "Control Room (soon)",
-            self.dropmenu_mode,
-            group=self.subradioitem_standalone,
-            on_signal="activate",
-            callback=self.on_controlroom_mode
-        )
-        self.subradioitem_monitoring = self._build_radiomenuitem(
-            "Monitoring (soon)",
-            self.dropmenu_mode,
-            group=self.subradioitem_standalone,
-            on_signal="activate",
-            callback=self.on_monitoring_mode
-        )
-
-        current_view_mode = self.subradioitem_standalone
-        self.subradioitem_controlroom.set_sensitive(False)  # DEV
-        self.subradioitem_monitoring.set_sensitive(False)  # DEV
-
-        return menu_item, current_view_mode
-
     def _build_menu_help(self, menu_bar):
         """
         Build the whole Help menu item.
@@ -291,23 +244,7 @@ class MainWindow:
                                       key, modifier, Gtk.AccelFlags.VISIBLE)
             accel_label = Gtk.AccelLabel()
             accel_label.set_accel_widget(menu_item)
-            hbox.pack_end(accel_label, True, True,0)
-
-        menu.append(menu_item)
-        return menu_item
-
-    def _build_radiomenuitem(self, name, menu,
-                             group=None,
-                             set_active=False,
-                             on_signal="toggled",
-                             callback=None):
-        """
-        """
-        menu_item = Gtk.RadioMenuItem(name, group=group)
-        menu_item.set_active(set_active)
-
-        if callback:
-            menu_item.connect(on_signal, callback)
+            hbox.pack_end(accel_label, True, True, 0)
 
         menu.append(menu_item)
         return menu_item
@@ -324,27 +261,9 @@ class MainWindow:
         else:
             raise ValueError
 
-    def change_application(self, new_application, new_application_container):
-        """
-        """
-        # IMPORTANT / FIXME:
-        # Application change won't take place as long as BaseApp is initiated
-        # in MainWindow constructor
-
-        if isinstance(new_application, type(self.current_app)):
-            #new_application.__del__()
-            return
-
-        self.main_vbox.remove(self.current_app_container)
-        self.current_app = new_application
-        self.current_app_container = new_application_container
-        # TODO: improve packing routine
-        self.main_vbox.pack_end(self.current_app_container, False, False, 0)
-        self.main_vbox.show_all()
-
     def on_mainwindow_close(self, *args):
-        self.current_app.feed.placeholder_pipeline.set_stop_state()
-        self.current_app.feed.pipeline.close()
+        self.feed.placeholder_pipeline.set_stop_state()
+        self.feed.pipeline.close()
         Gtk.main_quit()
 
     def on_save_clicked(self, widget):
@@ -366,7 +285,7 @@ class MainWindow:
             file_saved = dialog.get_filename()
             if ".huba" not in file_saved:
                 file_saved += ".huba"
-            self.session_properties = self.current_app.feed.gather_properties()
+            self.session_properties = self.feed.gather_properties()
             with open(file_saved, "w") as f:
                 json.dump(self.session_properties, f, indent="\t")
 
@@ -383,7 +302,7 @@ class MainWindow:
         with open(filepath) as f:
             try:
                 loaded_session = json.load(f)
-                self.current_app.feed.spread_properties(**loaded_session)
+                self.feed.spread_properties(**loaded_session)
             except ValueError:
                 message = "An error occurred during file decoding."
                 utils.build_error_dialog(message)
@@ -401,9 +320,9 @@ class MainWindow:
 
         :return: ``True`` if a confirmation is needed, ``False`` otherwise
         """
-        if not self.current_app.feed.placeholder_pipeline.is_playing:
-            stream_sinks = self.current_app.feed.pipeline.stream_sinks
-            store_sinks = self.current_app.feed.pipeline.store_sinks
+        if not self.feed.placeholder_pipeline.is_playing:
+            stream_sinks = self.feed.pipeline.stream_sinks
+            store_sinks = self.feed.pipeline.store_sinks
             for streamstore_elements in (stream_sinks, store_sinks):
                 for feed_type in streamstore_elements:
                     # This is the placeholder pipeline but an output sinks has
@@ -452,182 +371,33 @@ class MainWindow:
         dialog.destroy()
 
     def on_play_clicked(self, widget):
-        if not self.current_app.feed.controls.play_button.get_sensitive():
+        if not self.feed.controls.play_button.get_sensitive():
             return
 
-        self.current_app.feed.controls.on_play_clicked(
-                self.current_app.feed.controls.play_button)
+        self.feed.controls.on_play_clicked(
+                self.feed.controls.play_button)
 
     def on_stop_clicked(self, widget):
-        if not self.current_app.feed.controls.stop_button.get_sensitive():
+        if not self.feed.controls.stop_button.get_sensitive():
             return
 
-        self.current_app.feed.controls.on_stop_clicked(
-                self.current_app.feed.controls.stop_button)
+        self.feed.controls.on_stop_clicked(
+                self.feed.controls.stop_button)
 
     def on_video_input_clicked(self, widget):
-        self.current_app.feed.video_menu.on_video_input_clicked(widget)
+        self.feed.video_menu.on_video_input_clicked(widget)
 
     def on_audio_input_clicked(self, widget):
-        self.current_app.feed.audio_menu.on_audio_input_clicked(widget)
+        self.feed.audio_menu.on_audio_input_clicked(widget)
 
     def on_stream_clicked(self, widget):
-        self.current_app.feed.stream_menu.on_stream_clicked(widget)
+        self.feed.stream_menu.on_stream_clicked(widget)
 
     def on_store_clicked(self, widget):
-        self.current_app.feed.store_menu.on_store_clicked(widget)
+        self.feed.store_menu.on_store_clicked(widget)
 
     def on_settings_clicked(self, widget):
-        self.current_app.feed.settings_menu.on_settings_clicked(widget)
+        self.feed.settings_menu.on_settings_clicked(widget)
 
     def on_menu_item_file_activate(self, widget):
         pass
-
-    def on_standalone_mode(self, widget):
-        """
-        Callback launching standalone mode.
-        """
-        if not widget.get_active():
-            return
-        if self.current_view_mode == self.subradioitem_standalone:
-            return
-
-        standalone_app = self.current_app._display_confirmation_message(
-                "standalone", StandaloneApp)
-        self.change_application(standalone_app, standalone_app.new_feed_vbox)
-        self.current_view_mode = self.subradioitem_standalone
-
-    def on_controlroom_mode(self, widget):
-        """
-        Callback launching controlroom mode.
-        """
-        if not widget.get_active():
-            return
-        if self.current_view_mode == self.subradioitem_controlroom:
-            return
-
-        controlroom_app = self.current_app._display_confirmation_message(
-            "control room", ControlRoomApp)
-        self.change_application(controlroom_app, controlroom_app.container)
-        self.current_view_mode = self.subradioitem_controlroom
-
-    def on_monitoring_mode(self, widget):
-        """
-        Callback launching monitoring mode.
-        """
-        if not widget.get_active():
-            return
-        if self.current_view_mode == self.subradioitem_monitoring:
-            return
-
-        monitoring_app = self.current_app._display_confirmation_message(
-            "monitoring", MonitoringApp)
-        self.change_application(monitoring_app, monitoring_app.new_feed_vbox)
-        self.current_view_mode = self.subradioitem_monitoring
-
-
-class BaseApp:
-    """
-    Base application class.
-    """
-    def __init__(self, main_window, mode, images):
-        self.main_window = main_window
-        self.feed = feed.Feed(mode, images)
-        self.container = self.feed.hbox
-
-    def make_app(self):  # DEBUG
-        # Get Window ID
-        self.feed.set_xid()
-        # Set placeholder pipeline in play mode
-        self.feed.placeholder_pipeline.set_play_state()
-
-    def _display_confirmation_message(self, new_mode, app):
-        """
-        Display a popup message to confirm the mode switch.
-        """
-        text = "Switching to " + new_mode + " mode will end current stream."
-        messagebox = Gtk.MessageDialog(
-            buttons=Gtk.ButtonsType.OK_CANCEL,
-            message_type=Gtk.MessageType.WARNING,
-            message_format=text
-        )
-        messagebox.set_title("Confirmation")
-
-        try:
-            response = messagebox.run()
-            if response == Gtk.ResponseType.OK:
-                application = app()
-        finally:
-            messagebox.destroy()
-            return application
-
-
-class ControlRoomApp(BaseApp):
-    """
-    Window settings for multi-feed display.
-    """
-    def __init__(self):
-        self.placeholder_image = Gtk.Image.new_from_icon_name(
-            Gtk.STOCK_NEW, Gtk.IconSize.DIALOG)
-        self.new_feed_button = Gtk.Button("New Feed")
-
-        self.new_feed_vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
-        self.new_feed_vbox.set_halign(Gtk.Align.CENTER)
-        self.new_feed_vbox.set_valign(Gtk.Align.CENTER)
-        utils.pack_widgets(self.new_feed_vbox,
-                           self.placeholder_image,
-                           self.new_feed_button)
-
-        self._grid = Gtk.Grid()
-        self._grid.set_row_homogeneous(True)
-        self._grid.set_column_homogeneous(True)
-        self._grid.attach(self.new_feed_vbox, 0, 0, 1, 1)
-        self._grid.attach(Gtk.Label("FEED ELEMENT DEBUG1"), 1, 0, 1, 1)  # DEBUG
-        self._grid.attach(Gtk.Label("FEED ELEMENT DEBUG2"), 0, 1, 1, 1)  # DEBUG
-        self._grid.attach(Gtk.Label("FEED ELEMENT DEBUG3"), 1, 1, 1, 1)  # DEBUG
-        self._grid.show_all()
-
-        self.container = self._grid
-
-
-class StandaloneApp(BaseApp):
-    """
-    Window settings for one feed display.
-    """
-    def __init__(self):
-        self.placeholder_image = Gtk.Image.new_from_icon_name(
-            Gtk.STOCK_MEDIA_PLAY, Gtk.IconSize.DIALOG)
-        self.new_feed_button = Gtk.Button("New Feed")
-
-        self.new_feed_vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
-        self.new_feed_vbox.set_halign(Gtk.Align.CENTER)
-        self.new_feed_vbox.set_valign(Gtk.Align.CENTER)
-        utils.pack_widgets(self.new_feed_vbox,
-                           self.placeholder_image,
-                           self.new_feed_button)
-
-
-class MonitoringApp(BaseApp):
-    """
-    Window settings for monitoring one feed that is sent to a ControlRoom
-    HUBAngl instance.
-    """
-    def __init__(self):
-        self.placeholder_image = Gtk.Image.new_from_icon_name(
-            Gtk.STOCK_NEW, Gtk.IconSize.DIALOG)
-        self.new_feed_button = Gtk.Button("New Feed")
-
-        self.new_feed_vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
-        self.new_feed_vbox.set_halign(Gtk.Align.CENTER)
-        self.new_feed_vbox.set_valign(Gtk.Align.CENTER)
-        utils.pack_widgets(self.new_feed_vbox,
-                           self.placeholder_image,
-                           self.new_feed_button)
-
-
-if __name__ == "__main__":
-    from gi.repository import Gst
-    Gst.init()
-
-    MainWindow()
-    Gtk.main()
