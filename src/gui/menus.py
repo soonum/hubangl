@@ -850,6 +850,7 @@ class StreamMenu(AbstractMenu):
             self.password_entry = Gtk.Entry()
             self.password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
             self.password_entry.set_visibility(False)
+            self.password_entry.connect("changed", self.on_password_change)
             password_hbox = utils.build_multi_widgets_hbox(
                 [Gtk.Label("Password :"), ], [self.password_entry, ])
 
@@ -959,6 +960,12 @@ class StreamMenu(AbstractMenu):
 
         def on_mountpoint_change(self, widget):
             if widget.get_text() != self.mountpoint and self.port_entry.get_text():
+                self.stream_confirm_button.set_sensitive(True)
+
+        def on_password_change(self, widget):
+            if (self.host_entry.get_text()
+                    and self.port_entry.get_text()
+                    and self.mountpoint):
                 self.stream_confirm_button.set_sensitive(True)
 
         def on_format_radiobutton_toggle(self, widget):
