@@ -1004,6 +1004,12 @@ class StreamMenu(AbstractMenu):
                 self.sink = self.pipeline.create_stream_branch(
                     self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
+            else:
+                for key, value in (("ip", self.address),
+                                   ("port", self.port),
+                                   ("mount", self.mountpoint),
+                                   ("password", self.password)):
+                    self.sink.gstelement.set_property(key, value)
 
             element = watch.get_remote_watcher().add_watcher((self.address,
                                                               self.port))
@@ -1257,6 +1263,8 @@ class StoreMenu(AbstractMenu):
             if not self.sink:
                 self.sink = self.pipeline.create_store_branch(
                     self.current_stream_type, self.filepath, element_name)
+            else:
+                self.sink.gstelement.set_property("location", self.filepath)
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(self.full_filename)
