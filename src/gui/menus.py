@@ -910,9 +910,11 @@ class StreamMenu(AbstractMenu):
             video_radiobutton_value = self.video_radiobutton.get_active()
             audio_radiobutton_value = self.audio_radiobutton.get_active()
             feed_format = self._get_format_extension()
+            address, _ = self.get_ip_address()
 
             return {"host": self.host_entry.get_text(),
                     "port": self.port_entry.get_text(),
+                    "ip": address,
                     "mountpoint": self.mountpoint,
                     "mount": self.full_mountpoint,  # Used only by StremElement
                     "password": self.password,
