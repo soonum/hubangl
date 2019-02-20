@@ -1006,12 +1006,6 @@ class StreamMenu(AbstractMenu):
                     self.element_name, self.current_stream_type, self.address,
                     self.port, self.full_mountpoint, self.password)
             else:
-                for key, value in (("ip", self.address),
-                                   ("port", self.port),
-                                   ("mount", self.mountpoint),
-                                   ("password", self.password)):
-                    self.sink.gstelement.set_property(key, value)
-
                 if self.pipeline.is_playing:
                     utils.build_info_dialog(_PRESS_STOP_MESSAGE)
 
@@ -1268,7 +1262,6 @@ class StoreMenu(AbstractMenu):
                 self.sink = self.pipeline.create_store_branch(
                     self.current_stream_type, self.filepath, element_name)
             else:
-                self.sink.gstelement.set_property("location", self.filepath)
                 if self.pipeline.is_playing:
                     utils.build_info_dialog(_PRESS_STOP_MESSAGE)
 
