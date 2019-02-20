@@ -39,6 +39,7 @@ AUDIO_ONLY_STREAM = process.AUDIO_ONLY_STREAM
 
 _PROPERTIES_SET = "[gui] Properties set in {section} menu"
 _AUDIO_STATE_CHANGED = "Changed audio output state to {state}"
+_PRESS_STOP_MESSAGE = "Press STOP for changes to be taken into account"
 
 logger = logging.getLogger("gui.main_window")
 
@@ -1011,6 +1012,9 @@ class StreamMenu(AbstractMenu):
                                    ("password", self.password)):
                     self.sink.gstelement.set_property(key, value)
 
+                if self.pipeline.is_playing:
+                    utils.build_info_dialog(_PRESS_STOP_MESSAGE)
+
             element = watch.get_remote_watcher().add_watcher((self.address,
                                                               self.port))
             status_bar.get_status_bar().add_remote_element(element)
@@ -1265,6 +1269,8 @@ class StoreMenu(AbstractMenu):
                     self.current_stream_type, self.filepath, element_name)
             else:
                 self.sink.gstelement.set_property("location", self.filepath)
+                if self.pipeline.is_playing:
+                    utils.build_info_dialog(_PRESS_STOP_MESSAGE)
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(self.full_filename)

@@ -346,10 +346,6 @@ class ControlBar:
 
         logger.info(_FEED_STATE_CHANGED.format(state="PLAY"))
 
-    # TODO: Warn user about the need to press STOP button if any changes are
-    # requested in any feed ouput. Maybe warn the user via a notification
-    # window or a pop-up window.
-
     def on_stop_clicked(self, widget):
         if not self._pipeline.is_playing:
             return
