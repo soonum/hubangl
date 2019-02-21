@@ -1011,9 +1011,18 @@ class StreamMenu(AbstractMenu):
                 if self.pipeline.is_playing:
                     utils.build_info_dialog(_PRESS_STOP_MESSAGE)
 
-            element = watch.get_remote_watcher().add_watcher((self.address,
-                                                              self.port))
-            status_bar.get_status_bar().add_remote_element(element)
+            try:
+                element = watch.get_remote_watcher().add_watcher((self.address,
+                                                                  self.port))
+            except socket.herror:
+                sub_message = ("Unknown host ({}) for `{}` mountpoint.\n"
+                               "Verify the address entry.".format(
+                                   self.address, self.mountpoint))
+                utils.build_error_dialog("Bad input", sub_message)
+                watch.get_remote_watcher().remove_watcher(
+                    (previous_address, previous_port))
+            else:
+                status_bar.get_status_bar().add_remote_element(element)
 
             if not self.summary_vbox:
                 self.summary_vbox = self._build_summary_box(self.element_name)

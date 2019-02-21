@@ -174,6 +174,7 @@ class RemoteElement:
     def __init__(self, address):
         self._host = address[0]
         self._port = address[1]
+        self._hostname = socket.gethostbyaddr(self._host)[0]
 
         self._available = False
         self._unavailable_since = None
@@ -190,7 +191,7 @@ class RemoteElement:
 
     @property
     def hostname(self):
-        return socket.gethostbyaddr(self._host)[0]
+        return self._hostname
 
     @property
     def port(self):
