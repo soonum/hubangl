@@ -245,7 +245,10 @@ class AbstractMenu:
                                           proto=socket.IPPROTO_TCP)
                 address = info[0][4][0]
             except socket.gaierror:
-                utils.build_error_dialog("Bad input", "Hostname is not known")
+                utils.build_error_dialog(
+                    "Bad input",
+                    "Hostname {} is not known.\nVerify address entry.".format(
+                        host_ip_value))
                 raise
 
         return address, port
