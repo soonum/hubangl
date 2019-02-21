@@ -55,6 +55,7 @@ class MainWindow:
         self.window.set_icon_from_file(self.images.logo_favicon_path)
         self.window.connect("delete_event", self.on_mainwindow_close)
         self.window.add_accel_group(self.accel_group)
+        utils.set_main_window(self.window)
 
         self.feed = feed.Feed(self.images)
 
@@ -277,6 +278,7 @@ class MainWindow:
         file_save_dialog.set_current_name("Untilted.huba")
         file_save_dialog.set_do_overwrite_confirmation(True)
         file_save_dialog.set_modal(True)
+        file_save_dialog.set_transient_for(self.window)
         file_save_dialog.connect("response", self.on_save_response)
         file_save_dialog.run()
 
@@ -341,6 +343,7 @@ class MainWindow:
         )
         file_load_dialog.set_icon_from_file(self.images.logo_favicon_path)
         file_load_dialog.set_modal(True)
+        file_load_dialog.set_transient_for(self.window)
         file_load_dialog.connect("response", self.on_load_response)
         file_load_dialog.run()
 

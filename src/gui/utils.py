@@ -25,6 +25,18 @@ from gui import images
 
 images = images.HubanglImages()
 
+_main_window = None
+
+
+def set_main_window(window):
+    """
+    Set the application main window to be used as parent by dialog boxes.
+
+    :param window: :class:`Gtk.Window`
+    """
+    global _main_window
+    _main_window = window
+
 
 def pack_widgets(box, *widgets):
     """
@@ -81,6 +93,7 @@ def build_confirm_dialog(message_type, primary_text, secondary_text=None,
     dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
     dialog.add_button(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT)
     dialog.set_modal(True)
+    dialog.set_transient_for(_main_window)
     if on_signal and callback:
         dialog.connect(on_signal, callback)
 
@@ -101,6 +114,7 @@ def build_info_dialog(primary_text, secondary_text=None, title="Info"):
     dialog.format_secondary_text(secondary_text)
     dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
     dialog.set_modal(True)
+    dialog.set_transient_for(_main_window)
     dialog.connect("response", default_callback)
 
     dialog.run()
@@ -124,6 +138,7 @@ def build_error_dialog(primary_text, secondary_text=None, on_signal=None,
     dialog.format_secondary_text(secondary_text)
     dialog.add_button(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
     dialog.set_modal(True)
+    dialog.set_transient_for(_main_window)
     if on_signal and callback:
         dialog.connect(on_signal, callback)
     else:
