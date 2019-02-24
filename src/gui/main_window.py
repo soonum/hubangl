@@ -310,9 +310,9 @@ class MainWindow:
                 utils.build_error_dialog(message)
             except Exception:
                 # An error occurred while setting properties
+                logger.exception("Unexpected error occurred during file loading")
                 message = "An error occurred during file loading."
                 utils.build_error_dialog(message)
-                raise
             else:
                 logger.info("Session configuration loaded from %s" % filepath)
 
