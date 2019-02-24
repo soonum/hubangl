@@ -187,8 +187,8 @@ class StreamElement(OutputElement):
 class StoreElement(OutputElement):
     def __init__(self, name, path, **kwargs):
         OutputElement.__init__(self, name)
-        self.path = path
-        self.gstelement = self.create_gstelement(self.path, **kwargs)
+        self.location = path
+        self.gstelement = self.create_gstelement(path, **kwargs)
 
     def create_gstelement(self, path, **kwargs):
         """

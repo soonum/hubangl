@@ -917,9 +917,9 @@ class StreamMenu(AbstractMenu):
 
             return {"host": self.host_entry.get_text(),
                     "port": port,
-                    "ip": address,
+                    "ip": address,  # Only used by StreamElement
                     "mountpoint": self.mountpoint,
-                    "mount": self.full_mountpoint,  # Used only by StremElement
+                    "mount": self.full_mountpoint,  # Only used by StreamElement
                     "password": self.password,
                     "audiovideo_radiobutton": audiovideo_radiobutton_value,
                     "video_radiobutton": video_radiobutton_value,

@@ -363,16 +363,22 @@ class ControlBar:
         # that type. A new output element must be created via `Add` button.
         for feed_streamed in self.stream_menu.feeds:
             feed_streamed.build_full_mountpoint()
-            self._pipeline.update_gstelement_properties(
-                feed_streamed.sink, **feed_streamed.get_properties())
+            properties = {
+                key: value for key, value in feed_streamed.get_properties().items()
+                if hasattr(feed_streamed.sink, key)}
+            self._pipeline.update_gstelement_properties(feed_streamed.sink,
+                                                        **properties)
             feed_streamed.full_filename_label.set_label(
                 feed_streamed.element_name)
 
         for feed_recorded in self.store_menu.feeds:
             feed_recorded.create_unique_filename()
             feed_recorded.build_filepath()
-            self._pipeline.update_gstelement_properties(
-                feed_recorded.sink, **feed_recorded.get_properties())
+            properties = {
+                key: value for key, value in feed_recorded.get_properties().items()
+                if hasattr(feed_recorded.sink, key)}
+            self._pipeline.update_gstelement_properties(feed_recorded.sink,
+                                                        **properties)
             feed_recorded.full_filename_label.set_label(
                 feed_recorded.full_filename)
 
