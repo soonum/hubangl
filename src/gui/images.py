@@ -73,6 +73,23 @@ class HubanglImages:
             raise FileNotFoundError
         return artwork_path
 
+    def load_icon(self, name, version):
+        """
+        Load an icon identified by its ``name`` and its ``version``.
+
+        :param name: name of the icon (e.g: ``play``)
+        :param version: version of the icon (e.g: ``16`` for 16px version)
+
+        :return: :class:`Gtk.Image`, ``None`` if the icon has not been
+            found
+        """
+        for icon_path in self.artwork_path.iterdir():
+            filename = icon_path.name.lower()
+            if name in filename and version in filename:
+                icon = Gtk.Image()
+                icon.set_from_file(icon_path.as_posix())
+                return icon
+
     def load_icons(self):
         """
         Load all icons used for buttons.

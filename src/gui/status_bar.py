@@ -165,8 +165,8 @@ class StatusBar:
 
 class WatchedElement:
     def __init__(self, element):
-        self._red_square = _images.icons["square_red"]["regular_16px"]
-        self._green_square = _images.icons["square_green"]["regular_16px"]
+        self._red_square = _images.load_icon("square_red", "16")
+        self._green_square = _images.load_icon("square_green", "16")
 
         self.element = element
 
