@@ -244,11 +244,16 @@ class AbstractMenu:
                 info = socket.getaddrinfo(host_ip_value, port,
                                           proto=socket.IPPROTO_TCP)
                 address = info[0][4][0]
-            except socket.gaierror:
-                utils.build_error_dialog(
-                    "Bad input",
-                    "Hostname {} is not known.\nVerify address entry.".format(
-                        host_ip_value))
+            except socket.gaierror as e:
+                if e.errno == -3:
+                    msg = "Network issue"
+                    sub_msg = ("Hostname {} cannot be resolved.\n"
+                               "Verify your connection.".format(host_ip_value))
+                else:
+                    msg = "Bad input"
+                    sub_msg = ("Hostname {} is not known.\n"
+                               "Verify address entry.".format(host_ip_value))
+                utils.build_error_dialog(msg, sub_msg)
                 raise
 
         return address, port
@@ -913,7 +918,11 @@ class StreamMenu(AbstractMenu):
             video_radiobutton_value = self.video_radiobutton.get_active()
             audio_radiobutton_value = self.audio_radiobutton.get_active()
             feed_format = self._get_format_extension()
-            address, port = self.get_ip_address()
+            try:
+                address, port = self.get_ip_address()
+            except socket.gaierror:
+                address = self.address
+                port = self.port
 
             return {"host": self.host_entry.get_text(),
                     "port": port,
