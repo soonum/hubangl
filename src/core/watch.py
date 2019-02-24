@@ -286,7 +286,7 @@ class RemoteElement:
             elif line.startswith(port_pattern) and b"open" in line:
                 port_open = True
 
-        return host_running, port_open, float(latency) / 1000
+        return host_running, port_open, float(latency) * 1000
 
     def _set_state(self, host_running, port_open, latency):
         """
