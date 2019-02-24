@@ -886,10 +886,6 @@ class Pipeline:
             for _, sinks in sinks_dict.items():
                 for branch in sinks["branches"]:
                     self.remove_elements(self.pipeline, branch)
-                    for element in branch:
-                        if isinstance(element, ioelements.OutputElement):
-                            element = element.gstelement
-                        element.gstelement.set_state(Gst.State.NULL)
 
         for tee, fakesink in self._output_tee_pool.items():
             if not self._exist_in_pipeline(fakesink):
