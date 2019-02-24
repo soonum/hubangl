@@ -913,10 +913,10 @@ class StreamMenu(AbstractMenu):
             video_radiobutton_value = self.video_radiobutton.get_active()
             audio_radiobutton_value = self.audio_radiobutton.get_active()
             feed_format = self._get_format_extension()
-            address, _ = self.get_ip_address()
+            address, port = self.get_ip_address()
 
             return {"host": self.host_entry.get_text(),
-                    "port": self.port_entry.get_text(),
+                    "port": port,
                     "ip": address,
                     "mountpoint": self.mountpoint,
                     "mount": self.full_mountpoint,  # Used only by StremElement
@@ -943,7 +943,7 @@ class StreamMenu(AbstractMenu):
             feed_format_value = kargs.get("feed_format")
 
             self.host_entry.set_text(host_value)
-            self.port_entry.set_text(port_value)
+            self.port_entry.set_text(str(port_value))
             self.mountpoint_entry.set_text(mountpoint_value)
             self.password_entry.set_text(password_value)
 
