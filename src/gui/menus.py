@@ -505,7 +505,7 @@ class VideoMenu(AbstractMenu):
         self.video_ip_widgets.append(self.address_entries)
         self._make_widget_unavailable(*self.video_ip_widgets)
 
-        self.video_confirm_button = self._build_confirm_changes_button(
+        self.confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -517,7 +517,7 @@ class VideoMenu(AbstractMenu):
                            self.usb_sources,
                            self.ip_radiobutton,
                            self.address_entries,
-                           self.video_confirm_button)
+                           self.confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -557,7 +557,7 @@ class VideoMenu(AbstractMenu):
         # TODO: add an OR operator with ip_source_selected once ip based
         #       source is implemented
         if usb_source_selected:
-            self.on_confirm_clicked(self.video_confirm_button)
+            self.on_confirm_clicked(self.confirm_button)
 
         logger.debug(_PROPERTIES_SET.format(section="video"))
 
@@ -576,7 +576,7 @@ class VideoMenu(AbstractMenu):
     def on_usb_input_change(self, widget):
         active_text = widget.get_active_text()
         if active_text:
-            self.video_confirm_button.set_sensitive(True)
+            self.confirm_button.set_sensitive(True)
             self.requested_video_source = self.pipeline.get_source_by_name(
                 active_text)
 
@@ -588,7 +588,7 @@ class VideoMenu(AbstractMenu):
         self.current_video_source = self.requested_video_source
         self.requested_video_source = None
 
-        self.video_confirm_button.set_sensitive(False)
+        self.confirm_button.set_sensitive(False)
 
         if self.placeholder_pipeline.is_playing_state():
             self.placeholder_pipeline.set_stop_state()
@@ -657,7 +657,7 @@ class AudioMenu(AbstractMenu):
 
         sinks_hbox, _ = self._build_subsection(self.output_sinks)
 
-        self.audio_confirm_button = self._build_confirm_changes_button(
+        self.confirm_button = self._build_confirm_changes_button(
             callback=self.on_confirm_clicked)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -669,7 +669,7 @@ class AudioMenu(AbstractMenu):
                            sources_hbox,
                            monitor_hbox,
                            sinks_hbox,
-                           self.audio_confirm_button)
+                           self.confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -718,7 +718,7 @@ class AudioMenu(AbstractMenu):
             index += 1
 
         if audio_source_selected:
-            self.on_confirm_clicked(self.audio_confirm_button)
+            self.on_confirm_clicked(self.confirm_button)
 
         logger.debug(_PROPERTIES_SET.format(section="audio"))
 
@@ -726,12 +726,12 @@ class AudioMenu(AbstractMenu):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_input_change(self, widget):
-        self.audio_confirm_button.set_sensitive(True)
+        self.confirm_button.set_sensitive(True)
         self.requested_audio_source = self.pipeline.get_source_by_name(
             widget.get_active_text())
 
     def on_output_change(self, widget):
-        self.audio_confirm_button.set_sensitive(True)
+        self.confirm_button.set_sensitive(True)
         # self.requested_audio_sink = self.pipeline.get_source_by_name(
         #    widget.get_active_text())  # DEV
 
@@ -763,7 +763,7 @@ class AudioMenu(AbstractMenu):
         #    self.pipeline.set_speaker_sink(self.requested_audio_sink)  # DEV
         #    self.current_audio_sink = self.requested_audio_sink  # DEV
 
-        self.audio_confirm_button.set_sensitive(False)
+        self.confirm_button.set_sensitive(False)
 
         if self.placeholder_pipeline.is_playing_state():
             self.placeholder_pipeline.set_stop_state()
@@ -837,7 +837,7 @@ class StreamMenu(AbstractMenu):
             self._video_format_hbox = None
             self._audio_format_hbox = None
 
-            self.store_confirm_button = None
+            self.confirm_button = None
 
             self.hbox, self.vbox = self._build_newstream_vbox()
             self.summary_vbox = None
@@ -869,17 +869,17 @@ class StreamMenu(AbstractMenu):
             # video only feed.
             self.video_radiobutton.set_sensitive(False)
 
-            self.stream_confirm_button = self._build_confirm_changes_button(
+            self.confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
             # Label only used at initialization
-            self.stream_confirm_button.set_label("Create")
+            self.confirm_button.set_label("Create")
 
             hbox, vbox = self._build_subsection(address_hbox,
                                                 mountpoint_hbox,
                                                 password_hbox,
                                                 radiobutton_hbox,
                                                 self._audiovideo_format_hbox,
-                                                self.stream_confirm_button)
+                                                self.confirm_button)
             return hbox, vbox
 
         def build_full_mountpoint(self):
@@ -962,35 +962,35 @@ class StreamMenu(AbstractMenu):
             self.audio_radiobutton.set_active(audio_radiobutton_value)
             self._set_format_extension(feed_format_value)
 
-            self.on_confirm_clicked(self.stream_confirm_button)
+            self.on_confirm_clicked(self.confirm_button)
             logger.debug(_PROPERTIES_SET.format(section="stream"))
 
         def on_host_change(self, widget):
             if self.port_entry.get_text() and self.mountpoint:
-                self.stream_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_port_change(self, widget):
             if self.host_entry.get_text() and self.mountpoint:
-                self.stream_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_mountpoint_change(self, widget):
             if widget.get_text() != self.mountpoint and self.port_entry.get_text():
-                self.stream_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_password_change(self, widget):
             if (self.host_entry.get_text()
                     and self.port_entry.get_text()
                     and self.mountpoint):
-                self.stream_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_format_radiobutton_toggle(self, widget):
             self._change_output_format(widget)
-            self.vbox.reorder_child(self.stream_confirm_button, -1)
+            self.vbox.reorder_child(self.confirm_button, -1)
 
             if (self.host_entry.get_text()
                     and self.port_entry.get_text()
                     and self.mountpoint_entry.get_text()):
-                self.stream_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
             self._log_changes()
@@ -1049,8 +1049,8 @@ class StreamMenu(AbstractMenu):
                 logger.info("[gui] stream_{} '{}' endpoint created".format(
                     self._index, self.element_name))
 
-            self.stream_confirm_button.set_label("Confirm")
-            self.stream_confirm_button.set_sensitive(False)
+            self.confirm_button.set_label("Confirm")
+            self.confirm_button.set_sensitive(False)
 
         def on_settings_clicked(self, widget):
             return self._manage_revealer(self._revealer, self.hbox)
@@ -1116,7 +1116,7 @@ class StoreMenu(AbstractMenu):
             self._audiovideo_format_hbox = None
             self._video_format_hbox = None
             self._audio_format_hbox = None
-            self.store_confirm_button = None
+            self.confirm_button = None
 
             self.hbox, self.vbox = self._build_newfile_vbox()
             self.summary_vbox = None
@@ -1153,17 +1153,17 @@ class StoreMenu(AbstractMenu):
 
             radiobutton_hbox = self._build_format_group()
 
-            self.store_confirm_button = self._build_confirm_changes_button(
+            self.confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
             # Label only used at initialization
-            self.store_confirm_button.set_label("Create")
+            self.confirm_button.set_label("Create")
 
             hbox, vbox = self._build_subsection(self.folder_chooser_button,
                                                 name_hbox,
                                                 automatic_naming_hbox,
                                                 radiobutton_hbox,
                                                 self._audiovideo_format_hbox,
-                                                self.store_confirm_button)
+                                                self.confirm_button)
             return hbox, vbox
 
         def _get_formatted_timestamp(self):
@@ -1253,25 +1253,25 @@ class StoreMenu(AbstractMenu):
             self.audio_radiobutton.set_active(audio_radiobutton_value)
             self._set_format_extension(feed_format_value)
 
-            self.on_confirm_clicked(self.store_confirm_button)
+            self.on_confirm_clicked(self.confirm_button)
             logger.debug(_PROPERTIES_SET.format(section="store"))
 
         def on_folder_selected(self, widget):
             if self.name_entry.get_text():
-                self.store_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_name_change(self, widget):
             if (widget.get_text() != self.filename
                     and self.folder_chooser_button.get_filename()):
-                self.store_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_format_radiobutton_toggle(self, widget):
             self._change_output_format(widget)
-            self.vbox.reorder_child(self.store_confirm_button, -1)
+            self.vbox.reorder_child(self.confirm_button, -1)
 
             if (self.folder_chooser_button.get_filename()
                     and self.name_entry.get_text()):
-                self.store_confirm_button.set_sensitive(True)
+                self.confirm_button.set_sensitive(True)
 
         def on_confirm_clicked(self, widget):
             self._log_changes()
@@ -1301,8 +1301,8 @@ class StoreMenu(AbstractMenu):
                 logger.info("[gui] store_{} '{}' endpoint created".format(
                     self._index, self.full_filename))
 
-            self.store_confirm_button.set_label("Confirm")
-            self.store_confirm_button.set_sensitive(False)
+            self.confirm_button.set_label("Confirm")
+            self.confirm_button.set_sensitive(False)
 
         def on_settings_clicked(self, widget):
             return self._manage_revealer(self._revealer, self.hbox)
@@ -1364,10 +1364,10 @@ class SettingsMenu(AbstractMenu):
         self.hide_image_checkbutton.connect(
             "toggled", self.on_hide_image_toggle)
 
-        self.settings_confirm_button = self._build_confirm_changes_button(
+        self.confirm_button = self._build_confirm_changes_button(
                 callback=self.on_confirm_clicked)
-        self.settings_confirm_button.set_label("Confirm")
-        self.settings_confirm_button.set_size_request(250, 20)
+        self.confirm_button.set_label("Confirm")
+        self.confirm_button.set_size_request(250, 20)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.set_margin_top(6)
@@ -1380,7 +1380,7 @@ class SettingsMenu(AbstractMenu):
                            self.image_chooser_button,
                            self.image_position_combobox,
                            self.hide_image_checkbutton,
-                           self.settings_confirm_button)
+                           self.confirm_button)
         self._make_scrolled_window(vbox)
         return vbox
 
@@ -1451,23 +1451,23 @@ class SettingsMenu(AbstractMenu):
                              image_position_value)
         self.hide_image_checkbutton.set_active(hide_image_value)
 
-        self.on_confirm_clicked(self.settings_confirm_button)
+        self.on_confirm_clicked(self.confirm_button)
         logger.debug(_PROPERTIES_SET.format(section="settings"))
 
     def on_settings_clicked(self, widget):
         return self._manage_revealer(self.menu_revealer, self.scrolled_window)
 
     def on_text_change(self, widget):
-        self.settings_confirm_button.set_sensitive(True)
+        self.confirm_button.set_sensitive(True)
 
     def on_image_selected(self, widget):
-        self.settings_confirm_button.set_sensitive(True)
+        self.confirm_button.set_sensitive(True)
 
     def on_hide_text_toggle(self, widget):
-        self.settings_confirm_button.set_sensitive(True)
+        self.confirm_button.set_sensitive(True)
 
     def on_hide_image_toggle(self, widget):
-        self.settings_confirm_button.set_sensitive(True)
+        self.confirm_button.set_sensitive(True)
 
     def on_confirm_clicked(self, widget):
         self._log_changes()
@@ -1491,4 +1491,4 @@ class SettingsMenu(AbstractMenu):
             # Hack to hide an image.
             self.pipeline.set_image_overlay(alpha=0.0001)
 
-        self.settings_confirm_button.set_sensitive(False)
+        self.confirm_button.set_sensitive(False)
