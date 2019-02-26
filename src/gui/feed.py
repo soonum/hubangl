@@ -36,6 +36,7 @@ from gui import utils
 
 
 _FEED_STATE_CHANGED = "Changed feed state to {state}"
+_CHANGES_WAITING = "Changes are waiting for confirmation\n{} the feed anyway?"
 
 logger = logging.getLogger("gui.feed")
 
@@ -244,6 +245,11 @@ class ControlBar:
         self.stream_menu = stream_menu
         self.store_menu = store_menu
         self.settings_menu = settings_menu
+        self.menus = {"Audio": self.audio_menu,
+                      "Video": self.video_menu,
+                      "Stream": self.stream_menu,
+                      "Store": self.store_menu,
+                      "Settings": self.settings_menu}
 
         self.overlay_container = Gtk.Overlay()
         self.controlbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -252,6 +258,8 @@ class ControlBar:
         self.controlbox.set_halign(Gtk.Align.CENTER)
 
         self.toolbar = self._build_toolbar()
+
+        self.state_change_confirmed = False
 
     def display_controls(self):
         utils.pack_widgets(self.controlbox, self.toolbar)
@@ -321,6 +329,17 @@ class ControlBar:
         widget.show_all()
 
     def on_play_clicked(self, widget):
+        pendings_confirm = menus.get_pending_confirm(self.menus)
+        if pendings_confirm:
+            sub_msg = ("Verify following menus :\n\t- "
+                       + "\n\t- ".join(pendings_confirm))
+            utils.build_confirm_dialog(
+                Gtk.MessageType.WARNING, _CHANGES_WAITING.format("Launch"),
+                sub_msg, on_signal="response",
+                callback=self.on_state_change_confirmation)
+
+            if not self.state_change_confirmed:
+                return
 
         self.stop_button.set_icon_widget(self.images.get_regular_icon("stop"))
         self.stop_button.set_sensitive(True)
@@ -349,6 +368,18 @@ class ControlBar:
     def on_stop_clicked(self, widget):
         if not self._pipeline.is_playing:
             return
+
+        pendings_confirm = menus.get_pending_confirm(self.menus)
+        if pendings_confirm:
+            sub_msg = ("Verify following menus :\n\t- "
+                       + "\n\t- ".join(pendings_confirm))
+            utils.build_confirm_dialog(
+                Gtk.MessageType.WARNING, _CHANGES_WAITING.format("Stop"),
+                sub_msg, on_signal="response",
+                callback=self.on_state_change_confirmation)
+
+            if not self.state_change_confirmed:
+                return
 
         self.play_button.set_icon_widget(self.images.get_regular_icon("play"))
         self.play_button.set_sensitive(True)
@@ -393,3 +424,12 @@ class ControlBar:
             widget.set_icon_widget(self.images.icons["speaker"]["striked"])
 
         widget.show_all()
+
+    def on_state_change_confirmation(self, dialog, response_id):
+        if response_id == Gtk.ResponseType.ACCEPT:
+            self.state_change_confirmed = True
+        elif (response_id == Gtk.ResponseType.CANCEL
+              or response_id == Gtk.ResponseType.DELETE_EVENT):
+            self.state_change_confirmed = False
+
+        dialog.destroy()
