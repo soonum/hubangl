@@ -324,19 +324,21 @@ class AbstractMenu:
 
         return radiobutton_hbox
 
-    def _build_summary_box(self, filename):
+    def _build_summary_box(self, index, filename):
         """
         Build a container that sums up information about an output sink.
 
+        :param index: section index
         :param filename: filename of stored stream as :class:`str`
 
         :return: :class:`Gtk.Box`
         """
+        index_label = Gtk.Label(str(index) + ". ")
         self.full_filename_label = Gtk.Label(filename)
         settings_button = Gtk.Button(stock=Gtk.STOCK_PROPERTIES)
         settings_button.connect("clicked", self.on_settings_clicked)
         summary_hbox = utils.build_multi_widgets_hbox(
-            [self.full_filename_label, ], [settings_button, ])
+            [index_label, self.full_filename_label], [settings_button, ])
         summary_hbox.set_margin_top(6)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
@@ -1037,7 +1039,8 @@ class StreamMenu(AbstractMenu):
                 status_bar.get_status_bar().add_remote_element(element)
 
             if not self.summary_vbox:
-                self.summary_vbox = self._build_summary_box(self.element_name)
+                self.summary_vbox = self._build_summary_box(self.index,
+                                                            self.element_name)
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
@@ -1289,7 +1292,8 @@ class StoreMenu(AbstractMenu):
                     utils.build_info_dialog(_PRESS_STOP_MESSAGE)
 
             if not self.summary_vbox:
-                self.summary_vbox = self._build_summary_box(self.full_filename)
+                self.summary_vbox = self._build_summary_box(self.index,
+                                                            self.full_filename)
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
