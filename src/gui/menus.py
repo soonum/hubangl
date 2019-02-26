@@ -44,6 +44,26 @@ _PRESS_STOP_MESSAGE = "Press STOP for changes to be taken into account"
 logger = logging.getLogger("gui.main_window")
 
 
+def get_pending_confirm(menus):
+    """
+    Get a list of all the menus having changes waiting to be confirmed.
+
+    :param menus: :class:`dict` formatted as ``{"menu_name": menu_object}``
+
+    :return: :class:`list` of menu names as :class:`str`
+    """
+    pendings = []
+    for key, menu in menus.items():
+        if hasattr(menu, "feeds"):
+            for section in menu.feeds:
+                if section.confirm_button.get_sensitive():
+                    pendings.append(" ".join((key, str(section.index))))
+        elif menu.confirm_button.get_sensitive():
+            pendings.append(key)
+
+    return pendings
+
+
 class AbstractMenu:
     """
     """
