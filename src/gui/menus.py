@@ -812,7 +812,7 @@ class StreamMenu(AbstractMenu):
             self._parent_container = parent_container
             self._settings_revealer = settings_revealer
             self._revealer = self._build_revealer()
-            self._index = index
+            self.index = index
 
             self.server_address_entries = None
             self.hostname = None
@@ -903,7 +903,7 @@ class StreamMenu(AbstractMenu):
                         # Don't print password in logs
                         new_value = "*"
                     logger.info("[gui] stream_{index} {name} set to"
-                                " '{value}'".format(index=self._index,
+                                " '{value}'".format(index=self.index,
                                                     name=name,
                                                     value=new_value))
 
@@ -1041,13 +1041,13 @@ class StreamMenu(AbstractMenu):
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
-                    self.summary_vbox, self._index)
+                    self.summary_vbox, self.index)
 
                 self._settings_revealer.remove(self.hbox)
                 self._parent_container.show_all()
 
                 logger.info("[gui] stream_{} '{}' endpoint created".format(
-                    self._index, self.element_name))
+                    self.index, self.element_name))
 
             self.confirm_button.set_label("Confirm")
             self.confirm_button.set_sensitive(False)
@@ -1098,7 +1098,7 @@ class StoreMenu(AbstractMenu):
             self._parent_container = parent_container
             self._settings_revealer = settings_revealer
             self._revealer = self._build_revealer()
-            self._index = index
+            self.index = index
 
             self.folder_selection = None
             self.filename = ""
@@ -1199,7 +1199,7 @@ class StoreMenu(AbstractMenu):
                     ("feed type", self.current_stream_type, self._get_feed_type())):
                 if previous_value != new_value:
                     logger.info("[gui] store_{index} {name} set to"
-                                " '{value}'".format(index=self._index,
+                                " '{value}'".format(index=self.index,
                                                     name=name,
                                                     value=new_value))
 
@@ -1293,13 +1293,13 @@ class StoreMenu(AbstractMenu):
                 self._parent_container.pack_start(
                     self.summary_vbox, False, False, 0)
                 self._parent_container.reorder_child(
-                    self.summary_vbox, self._index)
+                    self.summary_vbox, self.index)
 
                 self._settings_revealer.remove(self.hbox)
                 self._parent_container.show_all()
 
                 logger.info("[gui] store_{} '{}' endpoint created".format(
-                    self._index, self.full_filename))
+                    self.index, self.full_filename))
 
             self.confirm_button.set_label("Confirm")
             self.confirm_button.set_sensitive(False)
