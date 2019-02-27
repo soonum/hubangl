@@ -53,7 +53,7 @@ class MainWindow:
         self.window.set_title("HUBAngl")
         self.window.set_position(Gtk.WindowPosition.CENTER)
         self.window.set_icon_from_file(self.images.logo_favicon_path)
-        self.window.connect("delete_event", self.on_mainwindow_close)
+        self.window.connect("destroy", self.on_mainwindow_close)
         self.window.add_accel_group(self.accel_group)
         utils.set_main_window(self.window)
 
@@ -129,7 +129,7 @@ class MainWindow:
         self._build_separatormenuitem(self.dropmenu_file)
         self.subitem_quit = self._build_menu_item(
             "Quit", self.dropmenu_file,
-            image=Gtk.STOCK_QUIT, callback=self.on_mainwindow_close,
+            image=Gtk.STOCK_QUIT, callback=self.on_quit,
             accelerator_key="<control>Q"
         )
 
@@ -372,6 +372,9 @@ class MainWindow:
             self.load_confirmed = False
 
         dialog.destroy()
+
+    def on_quit(self, widget):
+        self.window.destroy()
 
     def on_play_clicked(self, widget):
         if not self.feed.controls.play_button.get_sensitive():
