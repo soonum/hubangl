@@ -651,7 +651,50 @@ class AudioMenu(AbstractMenu):
             self.sources_list.append(source.name)
         self.mic_sources.connect("changed", self.on_input_change)
 
-        sources_hbox, _ = self._build_subsection(self.mic_sources)
+        self.compressor_checkbutton = Gtk.CheckButton("Compressor")
+        self.compressor_checkbutton.connect(
+            "toggled", self.on_compressor_toggle)
+
+        self.ratio = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, 1, 0.01)
+        self.ratio.set_value_pos(Gtk.PositionType.RIGHT)
+        self.ratio.set_value(1)
+        self.ratio.set_size_request(120, -1)
+        self.ratio.connect("value_changed", self.on_ratio_value_changed)
+        self.ratio.set_tooltip_text(
+            "Ratio of compression that should be applied.\n"
+            "0 = Limiter mode\n0.25 = Output a quarter of the input value\n"
+            "0.5 = Output a half of the input value\n1 = No compression")
+        ratio_hbox = utils.build_multi_widgets_hbox(
+            [Gtk.Label("Ratio")], [self.ratio], padding=6)
+
+        self.threshold = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        self.threshold.set_value_pos(Gtk.PositionType.RIGHT)
+        self.threshold.set_value(100)
+        self.threshold.set_size_request(120, -1)
+        self.threshold.connect("value_changed",
+                               self.on_threshold_value_changed)
+        self.threshold.set_tooltip_text(
+            "Threshold above which the compressor is activated.\n"
+            "(As a percentage of the input level)")
+        threshold_hbox = utils.build_multi_widgets_hbox(
+            [Gtk.Label("Threshold")], [self.threshold], padding=6)
+
+        self.soft_knee_checkbutton = Gtk.CheckButton("Soft Knee")
+        self.soft_knee_checkbutton.connect(
+            "toggled", self.on_soft_knee_toggle)
+        self.soft_knee_checkbutton.set_tooltip_text(
+            "If enabled the ratio would be applied smoothly")
+
+        self.compressor_settings_hbox, _ = self._build_subsection(
+            ratio_hbox, threshold_hbox, self.soft_knee_checkbutton)
+        self._compressor_settings_revealer = self._build_revealer()
+
+        sources_hbox, _ = self._build_subsection(
+            self.mic_sources,
+            self.compressor_checkbutton,
+            self._compressor_settings_revealer)
 
         self.mute_monitor_checkbutton = Gtk.CheckButton("Mute")
         self.mute_monitor_checkbutton.connect(
@@ -705,11 +748,19 @@ class AudioMenu(AbstractMenu):
         audio_sink_selected = self.output_sinks.get_active_text()
         source_muted = self.mute_input_checkbutton.get_active()
         monitor_muted = self.mute_monitor_checkbutton.get_active()
+        compressor_enabled = self.compressor_checkbutton.get_active()
+        compressor_ratio = self.ratio.get_value()
+        compressor_threshold = self.threshold.get_value()
+        compressor_soft_knee = self.soft_knee_checkbutton.get_active()
 
         return {"audio_source_selected": audio_source_selected,
                 "audio_sink_selected": audio_sink_selected,
                 "source_muted": source_muted,
-                "monitor_muted": monitor_muted}
+                "monitor_muted": monitor_muted,
+                "compressor_enabled": compressor_enabled,
+                "compressor_ratio": compressor_ratio,
+                "compressor_threshold": compressor_threshold,
+                "compressor_soft_knee": compressor_soft_knee}
 
     def set_properties(self, **kargs):
         """
@@ -721,6 +772,10 @@ class AudioMenu(AbstractMenu):
         audio_sink_selected = kargs.get("audio_sink_selected")
         source_muted = kargs.get("source_muted", False)
         monitor_muted = kargs.get("monitor_muted", True)
+        compressor_enabled = kargs.get("compressor_enabled", False)
+        compressor_ratio = kargs.get("compressor_ratio", 1)
+        compressor_threshold = kargs.get("compressor_threshold", 100)
+        compressor_soft_knee = kargs.get("compressor_soft_knee", False)
 
         self.requested_audio_source = None
         self.current_audio_source = None
@@ -729,6 +784,18 @@ class AudioMenu(AbstractMenu):
         self.on_input_change(self.mic_sources)
         self.mute_input_checkbutton.set_active(source_muted)
         self.mute_monitor_checkbutton.set_active(monitor_muted)
+        self.ratio.set_value(compressor_ratio)
+        self.threshold.set_value(compressor_threshold)
+        self.soft_knee_checkbutton.set_active(compressor_soft_knee)
+        # Compressor checkbutton must done last so that the above settings can
+        # be applied beforehand even if the compressor is disabled.
+        self.compressor_checkbutton.set_active(compressor_enabled)
+        if not compressor_enabled:
+            self.on_compressor_toggle(self.compressor_checkbutton)
+            # Reveal again to avoid inversion on user selection
+            # (revealing on disabling and folding on enabling)
+            self._manage_revealer(self._compressor_settings_revealer,
+                                  self.compressor_settings_hbox)
 
         # TODO: Handle user choice for output audio sink, currently this
         # implementation overrides user's choice by setting automatically
@@ -775,6 +842,48 @@ class AudioMenu(AbstractMenu):
             state = "MUTED"
 
         logger.debug(_AUDIO_STATE_CHANGED.format(state=state))
+
+    def on_compressor_toggle(self, widget):
+        if widget.get_active():
+            self.on_ratio_value_changed(self.ratio)
+            self.on_threshold_value_changed(self.threshold)
+            state = "enabled"
+        else:
+            # Set compressor in by-pass mode
+            self.pipeline.compressor.set_property("ratio", 1)
+            self.pipeline.compressor.set_property("threshold", 1)
+            state = "disabled"
+
+        logger.info("[gui] audio compressor has been {}".format(state))
+
+        return self._manage_revealer(self._compressor_settings_revealer,
+                                     self.compressor_settings_hbox)
+
+    def on_ratio_value_changed(self, widget):
+        """
+        Change ratio of the compressor in the pipeline.
+        This take effect immediatly.
+        """
+        self.pipeline.compressor.set_property("ratio", widget.get_value())
+
+    def on_threshold_value_changed(self, widget):
+        """
+        Change threshold of the compressor in the pipeline.
+        This take effect immediatly.
+        """
+        self.pipeline.compressor.set_property("threshold",
+                                              widget.get_value() / 100.0)
+
+    def on_soft_knee_toggle(self, widget):
+        """
+        Set mode of the compressor in the pipeline.
+        This take effect immediatly.
+        """
+        if widget.get_active():
+            knee = "soft-knee"
+        else:
+            knee = "hard-knee"
+        self.pipeline.compressor.set_property("characteristics", knee)
 
     def on_confirm_clicked(self, widget):
         if self.requested_audio_source != self.current_audio_source:

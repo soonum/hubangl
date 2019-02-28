@@ -1007,7 +1007,7 @@ class Pipeline:
         Create Gst elements for audio processing.
 
         Linking structure:
-        <from audio_source>---/volume/---/audiolevel/--->
+        <from audio_source>---/compressor/---/volume/---/audiolevel/--->
         --->/tee_audio_source/
                  |---/queue/---/volume/---/speaker_sink/
                  |---/vorbis_encoder/--->
@@ -1035,6 +1035,8 @@ class Pipeline:
         queue_speakersink = GstElement(
             "queue", "queue_speakersink", tee_output=True)
         queue_speakersink.set_related_tee(tee_audio_source)
+        # Compressor:
+        self.compressor = GstElement("audiodynamic", "compressor")
         # Volume:
         self.source_volume = GstElement("volume", "source_volume")
         self.speaker_volume = GstElement("volume", "speaker_volume")
@@ -1058,7 +1060,8 @@ class Pipeline:
         self.set_default_speaker_sink()
         self.speaker_sink.set_property("sync", False)
 
-        source_branch = (self.source_volume, audiolevel, tee_audio_source)
+        source_branch = (
+            self.compressor, self.source_volume, audiolevel, tee_audio_source)
         output_branch_encoding = (vorbis_encoder, tee_audio_process)
         output_branch_muxing = (queue_muxer_av1, ogg_muxer, tee_output_audio)
         output_branch_loudspeakers = (
