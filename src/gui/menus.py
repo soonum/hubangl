@@ -135,6 +135,9 @@ class AbstractMenu:
         if revealer_widget.get_child_revealed():
             if child == container_widget:
                 revealer_widget.set_reveal_child(False)
+                # Hack to make the top-level window shrink back to
+                # its original size.
+                utils.get_video_monitor().set_size_request(1, -1)
                 return False
 
         if child:

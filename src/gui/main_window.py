@@ -58,6 +58,7 @@ class MainWindow:
         utils.set_main_window(self.window)
 
         self.feed = feed.Feed(self.images)
+        utils.set_video_monitor(self.feed.video_monitor)
 
         self.menu_bar = Gtk.MenuBar()
         self.menu_item_file = self._build_menu_file(self.menu_bar)

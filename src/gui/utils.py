@@ -26,6 +26,7 @@ from gui import images
 images = images.HubanglImages()
 
 _main_window = None
+_video_monitor = None
 
 
 def set_main_window(window):
@@ -36,6 +37,23 @@ def set_main_window(window):
     """
     global _main_window
     _main_window = window
+
+
+def set_video_monitor(monitor):
+    """
+    Set the application video monitor to handle window resizing.
+
+    :param window: :class:`Gtk.DrawingArea`
+    """
+    global _video_monitor
+    _video_monitor = monitor
+
+
+def get_video_monitor():
+    """
+    :return: :class:`Gtk.DrawingArea` if instanciated, ``None`` otherwise
+    """
+    return _video_monitor
 
 
 def pack_widgets(box, *widgets):
