@@ -38,7 +38,6 @@ VIDEO_ONLY_STREAM = process.VIDEO_ONLY_STREAM
 AUDIO_ONLY_STREAM = process.AUDIO_ONLY_STREAM
 
 _PROPERTIES_SET = "[gui] Properties set in {section} menu"
-_AUDIO_STATE_CHANGED = "Changed audio output state to {state}"
 _PRESS_STOP_MESSAGE = "Press STOP for changes to be taken into account"
 
 logger = logging.getLogger("gui.main_window")
@@ -210,7 +209,7 @@ class AbstractMenu:
         """
         """
         self.host_entry = Gtk.Entry()
-        self.host_entry.set_placeholder_text("hostname or IP address")
+        self.host_entry.set_placeholder_text("Hostname or IP address")
         self.host_entry.connect("changed", self.on_host_change)
 
         self.port_entry = Gtk.Entry()
@@ -218,7 +217,7 @@ class AbstractMenu:
         self.port_entry.set_width_chars(5)
         if hasattr(self.port_entry, "set_max_width_chars"):
             self.port_entry.set_max_width_chars(5)
-        self.port_entry.set_placeholder_text("port")
+        self.port_entry.set_placeholder_text("Port")
         self.port_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
         self.port_entry.connect("changed", self.on_port_change)
 
@@ -643,6 +642,8 @@ class AudioMenu(AbstractMenu):
         self.mute_input_checkbutton = Gtk.CheckButton("Mute")
         self.mute_input_checkbutton.connect(
             "toggled", self.on_mute_input_toggle)
+        # Set tooltip text
+        self.on_mute_input_toggle(self.mute_input_checkbutton)
 
         input_hbox = Gtk.Box()
         input_hbox.pack_start(Gtk.Label("Input"), False, False, 0)
@@ -706,8 +707,6 @@ class AudioMenu(AbstractMenu):
         self.mute_monitor_checkbutton.set_active(True)
         # Check button activable from another place (gui.feed)
         self.mute_monitor_checkbutton.set_sensitive(False)
-        self.mute_monitor_checkbutton.set_tooltip_text(
-            "State can be changed from media control bar")
 
         monitor_hbox = Gtk.Box()
         monitor_hbox.pack_start(Gtk.Label("Monitor"), False, False, 0)
@@ -832,6 +831,8 @@ class AudioMenu(AbstractMenu):
         Mute audio input in the pipeline. This take effect immediatly.
         """
         self.pipeline.mute_audio_input(widget.get_active())
+        action = "Unmute" if widget.get_active() else "Mute"
+        widget.set_tooltip_text("{} audio input".format(action))
 
     def on_mute_monitor_toggle(self, widget):
         """
@@ -839,12 +840,16 @@ class AudioMenu(AbstractMenu):
         """
         if widget.get_active():
             self.pipeline.speaker_volume.set_property("mute", True)
-            state = "UNMUTED"
         else:
             self.pipeline.speaker_volume.set_property("mute", False)
-            state = "MUTED"
 
-        logger.debug(_AUDIO_STATE_CHANGED.format(state=state))
+        action = "Unmute" if widget.get_active() else "Mute"
+        widget.set_tooltip_text(
+            "{} audio monitor output.\n"
+            "State can be only changed from media control bar".format(
+                action))
+        logger.debug("Changed audio output state to {}D".format(
+            action.upper()))
 
     def on_compressor_toggle(self, widget):
         if widget.get_active():
@@ -987,6 +992,7 @@ class StreamMenu(AbstractMenu):
 
             self.mountpoint_entry = Gtk.Entry()
             self.mountpoint_entry.connect("changed", self.on_mountpoint_change)
+            self.mountpoint_entry.set_placeholder_text("Type a stream name")
             mountpoint_hbox = utils.build_multi_widgets_hbox(
                 [Gtk.Label("Mountpoint :"), ], [self.mountpoint_entry, ])
 
@@ -994,6 +1000,7 @@ class StreamMenu(AbstractMenu):
             self.password_entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
             self.password_entry.set_visibility(False)
             self.password_entry.connect("changed", self.on_password_change)
+            self.password_entry.set_placeholder_text("Type Icecast's password")
             password_hbox = utils.build_multi_widgets_hbox(
                 [Gtk.Label("Password :"), ], [self.password_entry, ])
 
