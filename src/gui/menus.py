@@ -619,7 +619,7 @@ class VideoMenu(AbstractMenu):
             self.pipeline.set_preview_state("audio")
         elif self.pipeline.get_current_text() == "No video source":
             # An audio source is already set
-            self.pipeline.set_text_overlay("PREVIEW", "left", "top")
+            self.pipeline.set_text_overlay("", "left", "top")
 
 
 class AudioMenu(AbstractMenu):
