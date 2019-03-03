@@ -655,9 +655,12 @@ class AudioMenu(AbstractMenu):
             self.sources_list.append(source.name)
         self.mic_sources.connect("changed", self.on_input_change)
 
-        self.compressor_checkbutton = Gtk.CheckButton("Compressor")
-        self.compressor_checkbutton.connect(
-            "toggled", self.on_compressor_toggle)
+        self.compressor_switch = Gtk.Switch()
+        self.compressor_switch.connect(
+            "notify::active", self.on_switch_activated)
+        self.compressor_switch.set_active(False)
+        compressor_hbox = utils.build_multi_widgets_hbox(
+            [Gtk.Label("Compressor")], [self.compressor_switch])
 
         self.ratio = Gtk.Scale.new_with_range(
             Gtk.Orientation.HORIZONTAL, 0, 1, 0.01)
@@ -697,7 +700,7 @@ class AudioMenu(AbstractMenu):
 
         sources_hbox, _ = self._build_subsection(
             self.mic_sources,
-            self.compressor_checkbutton,
+            compressor_hbox,
             self._compressor_settings_revealer)
 
         self.mute_monitor_checkbutton = Gtk.CheckButton("Mute")
@@ -750,7 +753,7 @@ class AudioMenu(AbstractMenu):
         audio_sink_selected = self.output_sinks.get_active_text()
         source_muted = self.mute_input_checkbutton.get_active()
         monitor_muted = self.mute_monitor_checkbutton.get_active()
-        compressor_enabled = self.compressor_checkbutton.get_active()
+        compressor_enabled = self.compressor_switch.get_active()
         compressor_ratio = self.ratio.get_value()
         compressor_threshold = self.threshold.get_value()
         compressor_soft_knee = self.soft_knee_checkbutton.get_active()
@@ -791,9 +794,9 @@ class AudioMenu(AbstractMenu):
         self.soft_knee_checkbutton.set_active(compressor_soft_knee)
         # Compressor checkbutton must done last so that the above settings can
         # be applied beforehand even if the compressor is disabled.
-        self.compressor_checkbutton.set_active(compressor_enabled)
+        self.compressor_switch.set_active(compressor_enabled)
         if not compressor_enabled:
-            self.on_compressor_toggle(self.compressor_checkbutton)
+            self.on_switch_activated(self.compressor_switch, None)
             # Reveal again to avoid inversion on user selection
             # (revealing on disabling and folding on enabling)
             self._manage_revealer(self._compressor_settings_revealer,
@@ -848,7 +851,7 @@ class AudioMenu(AbstractMenu):
         logger.debug("Changed audio output state to {}D".format(
             action.upper()))
 
-    def on_compressor_toggle(self, widget):
+    def on_switch_activated(self, widget, gparam):
         if widget.get_active():
             self.on_ratio_value_changed(self.ratio)
             self.on_threshold_value_changed(self.threshold)
@@ -861,6 +864,7 @@ class AudioMenu(AbstractMenu):
 
         logger.info("[gui] audio compressor has been {}".format(state))
 
+        time.sleep(.4)  # 400ms delay to avoid revealer issue with double-click
         return self._manage_revealer(self._compressor_settings_revealer,
                                      self.compressor_settings_hbox)
 
