@@ -838,10 +838,7 @@ class AudioMenu(AbstractMenu):
         """
         Mute the loudspeakers/headphones output. This take effect immediatly.
         """
-        if widget.get_active():
-            self.pipeline.speaker_volume.set_property("mute", True)
-        else:
-            self.pipeline.speaker_volume.set_property("mute", False)
+        self.pipeline.speaker_volume.set_property("mute", widget.get_active())
 
         action = "Unmute" if widget.get_active() else "Mute"
         widget.set_tooltip_text(
