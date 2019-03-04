@@ -1147,11 +1147,10 @@ class StreamMenu(AbstractMenu):
                 # created.
                 return
 
-            if previous_address != self.address or previous_port != self.port:
-                element = watch.get_remote_watcher().remove_watcher(
-                    (previous_address, previous_port))
-                if element:
-                    status_bar.get_status_bar().remove_remote_element(element)
+            element = watch.get_remote_watcher().remove_watcher(
+                (previous_address, previous_port))
+            if element:
+                status_bar.get_status_bar().remove_remote_element(element)
 
             self.feed_type = self._get_feed_type()
             self.build_full_mountpoint()
