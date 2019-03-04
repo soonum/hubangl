@@ -453,8 +453,11 @@ class AbstractMenu:
                 comboboxtext_widget.set_active(index)
                 return
 
-        logger.error("[gui] Device '{}' has not been found"
-                     " (available devices: {})".format(text, text_list))
+        message = ("Device '{}' has not been found"
+                   " (available devices: {})".format(
+                       text, ", ".join(text_list) or None))
+        logger.error("[gui] " + message)
+        utils.build_error_dialog(message)
 
     def has_sink_set(self):
         """
