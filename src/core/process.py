@@ -509,11 +509,12 @@ class Pipeline:
         sinkpad = current_element.get_static_pad("sink")
         element_before = self.get_connected_element(sinkpad)
 
-        current_element.set_state(Gst.State.NULL)
         current_bin.remove(current_element)
         logger.debug("[main pipeline] GstElement dynamically removed from"
                      " pipeline: '{}'".format(current_element.name))
 
+        # Set requested element to NULL state to avoid feed deadlock
+        requested_element.gstelement.set_state(Gst.State.NULL)
         self.add_elements(current_bin, (requested_element,))
         if element_before:
             # This doesn't apply for input sources
