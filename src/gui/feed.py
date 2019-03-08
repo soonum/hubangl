@@ -328,6 +328,59 @@ class ControlBar:
         widget.set_icon_widget(icon)
         widget.show_all()
 
+    def _are_streamsinks_working(self):
+        """
+        :return: ``True`` if all streamsinks are working ones, ``False``
+            otherwise
+        """
+        all_working = True
+
+        for feed_streamed in self.stream_menu.feeds:
+            error = feed_streamed.probe_pipeline.error_message
+            if not error:
+                feed_streamed.probe_pipeline.close()
+                continue
+            elif "couldn't connect" in error:
+                log_message = "Couldn't connect to server for stream '{}'"
+                sub_message = "Verify address and port entry."
+            elif "login failed" in error:
+                log_message = "Login failed for stream '{}'"
+                sub_message = "Verify password entry."
+
+            logger.info(log_message.format(feed_streamed.mountpoint))
+            utils.build_error_dialog(log_message.format(
+                feed_streamed.mountpoint), sub_message)
+            feed_streamed.probe_pipeline.close()
+            all_working = False
+
+        return all_working
+
+    def _refresh_properties(self):
+        # FIXME: a change of feed type does not create a new output element
+        # neither remove the current one. As a consequence, once a feed type
+        # is chosen, after user click play this not possible (yet) to change
+        # that type. A new output element must be created via `Add` button.
+        for feed_streamed in self.stream_menu.feeds:
+            feed_streamed.build_full_mountpoint()
+            properties = {
+                key: value for key, value in feed_streamed.get_properties().items()
+                if hasattr(feed_streamed.sink, key)}
+            self._pipeline.update_gstelement_properties(feed_streamed.sink,
+                                                        **properties)
+            feed_streamed.full_filename_label.set_label(
+                feed_streamed.element_name)
+
+        for feed_recorded in self.store_menu.feeds:
+            feed_recorded.create_unique_filename()
+            feed_recorded.build_filepath()
+            properties = {
+                key: value for key, value in feed_recorded.get_properties().items()
+                if hasattr(feed_recorded.sink, key)}
+            self._pipeline.update_gstelement_properties(feed_recorded.sink,
+                                                        **properties)
+            feed_recorded.full_filename_label.set_label(
+                feed_recorded.full_filename)
+
     def on_play_clicked(self, widget):
         pendings_confirm = menus.get_pending_confirm(self.menus)
         if pendings_confirm:
@@ -340,6 +393,10 @@ class ControlBar:
 
             if not self.state_change_confirmed:
                 return
+
+        if not self._are_streamsinks_working():
+            return
+        self._refresh_properties()
 
         self.stop_button.set_icon_widget(self.images.get_regular_icon("stop"))
         self.stop_button.set_sensitive(True)
@@ -388,30 +445,7 @@ class ControlBar:
         self._pipeline.set_stop_state()
         self.stop_button.set_sensitive(False)
 
-        # FIXME: a change of feed type does not create a new output element
-        # neither remove the current one. As a consequence, once a feed type
-        # is chosen, after user click play this not possible (yet) to change
-        # that type. A new output element must be created via `Add` button.
-        for feed_streamed in self.stream_menu.feeds:
-            feed_streamed.build_full_mountpoint()
-            properties = {
-                key: value for key, value in feed_streamed.get_properties().items()
-                if hasattr(feed_streamed.sink, key)}
-            self._pipeline.update_gstelement_properties(feed_streamed.sink,
-                                                        **properties)
-            feed_streamed.full_filename_label.set_label(
-                feed_streamed.element_name)
-
-        for feed_recorded in self.store_menu.feeds:
-            feed_recorded.create_unique_filename()
-            feed_recorded.build_filepath()
-            properties = {
-                key: value for key, value in feed_recorded.get_properties().items()
-                if hasattr(feed_recorded.sink, key)}
-            self._pipeline.update_gstelement_properties(feed_recorded.sink,
-                                                        **properties)
-            feed_recorded.full_filename_label.set_label(
-                feed_recorded.full_filename)
+        self._refresh_properties()
 
         logger.info(_FEED_STATE_CHANGED.format(state="STOP"))
 

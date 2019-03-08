@@ -986,6 +986,10 @@ class StreamMenu(AbstractMenu):
             self.summary_vbox = None
 
             self.sink = None
+            # Pipeline used to attempt a connection to the streaming server.
+            # This is done to detect connection error (wrong address or port)
+            # and login error (wrong password).
+            self.probe_pipeline = None
 
         def _build_newstream_vbox(self):
             """
@@ -1035,6 +1039,27 @@ class StreamMenu(AbstractMenu):
             self.mountpoint = self.mountpoint_entry.get_text()
             self.full_mountpoint = (self.mountpoint
                                     + self._get_format_extension())
+
+        def _create_probe_pipeline(self, address, port, password):
+            """
+            Create a pipeline testing the connection to the stream sink
+
+            :param address: server hostname or IP address
+            :param port: server port to connect to
+            :param password: server password
+            """
+            if (self.probe_pipeline
+                    and address == self.probe_pipeline.address
+                    and port == self.probe_pipeline.port
+                    and password == self.probe_pipeline.password):
+                # The pipeline has already run once, no need to run it again
+                # with the same settings
+                return
+
+            self.probe_pipeline = process.StreamingServerPipeline(address,
+                                                                  port,
+                                                                  password)
+            self.probe_pipeline.check_streamsink()
 
         def _log_changes(self):
             for name, previous_value, new_value in (
@@ -1159,6 +1184,9 @@ class StreamMenu(AbstractMenu):
             self.build_full_mountpoint()
             self.password = self.password_entry.get_text()
             self.element_name = self.mountpoint.split("/")[-1]
+
+            self._create_probe_pipeline(self.address, self.port, self.password)
+
             if not self.sink:
                 self.sink = self.pipeline.create_stream_branch(
                     self.element_name, self.current_stream_type, self.address,

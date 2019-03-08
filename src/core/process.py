@@ -1214,3 +1214,53 @@ class Pipeline:
         output_branch_muxing = (webm_muxer, tee_output_audiovideo)
 
         return (source_audio, source_video, output_branch_muxing)
+
+
+class StreamingServerPipeline:
+    """
+    Pipeline able to check if a given stream sink is a working one.
+
+    :param address: server hostname or IP address
+    :param port: server port to connect to
+    :param password: server password
+    """
+    def __init__(self, address, port, password):
+        self.address = address
+        self.port = port
+        self.password = password
+        self._pipeline = None
+        self.error_message = None
+
+    def close(self):
+        self._pipeline.set_state(Gst.State.NULL)
+        self.error_message = None
+
+    def check_streamsink(self):
+        """
+        Check connect and login to the stream sink by using a minimal
+        GStreamer pipeline.
+        If an error is encountered during the process, a summary of the error
+        message would be stored in :attr:`error_message`.
+        """
+        description = ("audiotestsrc ! vorbisenc ! oggmux !"
+                       "shout2send ip={address} port={port}"
+                       " mount=/icecast_check.ogg"
+                       " password={password}".format(
+                           address=self.address, port=self.port,
+                           password=self.password))
+        self._pipeline = Gst.parse_launch(description)
+        self._pipeline.bus.add_signal_watch()
+        self._pipeline.bus.connect("message::error", self.on_error)
+
+        self._pipeline.set_state(Gst.State.PLAYING)
+
+    def on_error(self, bus, message):
+        _, debug = message.parse_error()
+        try:
+            self.error_message = debug.rsplit("failed: err=")[1].lower()
+        except IndexError:
+            logger.error(
+                "[probe pipeline] Failed to parse error message ({})".format(
+                    debug))
+        finally:
+            self._pipeline.set_state(Gst.State.NULL)
