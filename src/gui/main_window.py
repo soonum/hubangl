@@ -305,6 +305,7 @@ class MainWindow:
         with open(filepath) as f:
             try:
                 loaded_session = json.load(f)
+                self.status_bar.remove_all_elements()
                 self.feed.spread_properties(**loaded_session)
             except ValueError:
                 message = "An error occurred during file decoding."

@@ -149,6 +149,21 @@ class StatusBar:
         """
         self._remove_watched_element(self._hbox_remote, element)
 
+    def remove_all_elements(self):
+        """
+        Remove all elements, both local and remote ones, from the status bar.
+        """
+        for watched_element in self._elements:
+            if isinstance(watched_element, WatchedRemote):
+                box = self._hbox_remote
+            elif isinstance(watched_element, WatchedLocal):
+                box = self._hbox_local
+            box.remove(watched_element.button)
+
+        self._hbox_remote.hide()
+        self._hbox_local.hide()
+        self._elements = set()
+
     def _remove_watched_element(self, box, element):
         watched_element = self.get_watched_element(element)
         if not watched_element:
