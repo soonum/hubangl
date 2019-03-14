@@ -324,16 +324,9 @@ class MainWindow:
         :return: ``True`` if a confirmation is needed, ``False`` otherwise
         """
         if not self.feed.placeholder_pipeline.is_playing:
-            stream_sinks = self.feed.pipeline.stream_sinks
-            store_sinks = self.feed.pipeline.store_sinks
-            for streamstore_elements in (stream_sinks, store_sinks):
-                for feed_type in streamstore_elements:
-                    # This is the placeholder pipeline but an output sinks has
-                    # already been set, the settings will be lost in case of
-                    # session loading, we need to ask a confirmation from user.
-                    return True
-            else:
-                return False
+            return True
+
+        return False
 
     def on_load_clicked(self, widget):
         file_load_dialog = Gtk.FileChooserDialog(
