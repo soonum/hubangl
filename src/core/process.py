@@ -21,6 +21,7 @@
 
 import logging
 import pathlib
+import socket
 
 from gi.repository import Gst
 from gi.repository import GLib
@@ -1244,10 +1245,10 @@ class StreamingServerPipeline:
         """
         description = ("audiotestsrc ! vorbisenc ! oggmux !"
                        "shout2send ip={address} port={port}"
-                       " mount=/icecast_check.ogg"
+                       " mount=/test_{hostname}.ogg"
                        " password={password}".format(
                            address=self.address, port=self.port,
-                           password=self.password))
+                           hostname=socket.gethostname(), password=self.password))
         self._pipeline = Gst.parse_launch(description)
         self._pipeline.bus.add_signal_watch()
         self._pipeline.bus.connect("message::error", self.on_error)
