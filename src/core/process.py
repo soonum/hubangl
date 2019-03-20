@@ -955,6 +955,9 @@ class Pipeline:
         queue.set_related_tee(self.stream_sink_branches[feed_type]["tee"])
         queue.set_property("flush-on-eos", True)
         queue.set_property("leaky", 2)
+        queue.set_property("max-size-bytes", 1024*1024*64)
+        queue.set_property("max-size-time", 10000000000)
+        queue.set_property("max-size-buffers", 2000)
 
         sink_name = element_name + "_" + id
         sink = ioelements.StreamElement(sink_name, ip, port, mount, password)
