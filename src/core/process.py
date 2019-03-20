@@ -551,17 +551,18 @@ class Pipeline:
 
         :param message: GStreamer bus message
         """
+        logger.warning("Detected disconnect signal, unlinking shout2send sink")
         for feed_type, sinks in self.stream_sink_branches.items():
             for branch in sinks["branches"]:
                 if message.src == branch[-1].gstelement.gstelement:
                     pad = branch[0].gstelement.get_static_pad("sink")
                     tee_pad = pad.get_peer()
-                    tee_pad.add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM,
+                    self.probeid=tee_pad.add_probe(Gst.PadProbeType.IDLE ,
                                       self._on_stream_down, {"branch": branch})
+                    logger.debug("Removed idle probe on stream sink")
                     break
 
     def _on_stream_down(self, pad, info, user_data):
-        Gst.Pad.remove_probe(pad, info.id)
         branch = user_data["branch"]
         sink_pad = branch[0].gstelement.get_static_pad("sink")
         pad.unlink(sink_pad)
@@ -569,8 +570,9 @@ class Pipeline:
             if isinstance(element, ioelements.OutputElement):
                 element = element.gstelement
             element.gstelement.set_state(Gst.State.NULL)
-        GLib.timeout_add_seconds(RECONNECT_INTERVAL, self._reconnect_stream, pad, branch)
-        return Gst.PadProbeReturn.OK
+        # The disconnect code is safe to this point but the reconnect code is not, disabling.
+        #GLib.timeout_add_seconds(RECONNECT_INTERVAL, self._reconnect_stream, pad, branch)
+        return Gst.PadProbeReturn.REMOVE
 
     def _reconnect_stream(self, tee_pad, branch):
         tee_pad.add_probe(Gst.PadProbeType.BLOCK_DOWNSTREAM,
