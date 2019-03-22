@@ -237,10 +237,9 @@ class Pipeline:
         Set pipeline instance to NULL state and end broadcasting, then
         the pipeline gets back to preview mode.
         """
-        self.remove_output_branches()
-
         self.set_null_state()
         self.is_playing = False
+        self.remove_output_branches()
         logger.debug("[main pipeline] Switched to STOP state")
 
         # Switch back to preview mode.
